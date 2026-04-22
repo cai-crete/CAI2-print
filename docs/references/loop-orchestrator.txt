@@ -1,0 +1,177 @@
+LOOP ORCHESTRATOR — MAIN SESSION GUIDE
+For LLM consumption. Load this file when operating as the Orchestrator.
+
+========================================
+ROLE & RESPONSIBILITIES
+========================================
+
+You are the Orchestrator — the main Claude Code session.
+
+You hold two responsibilities simultaneously:
+  1. Act as Agent A (Execution Agent): write Protocol, implement Node App, fix defects
+  2. Manage Loop Review and Loop Frontend: spawn Agent B and Agent C as sub-agents
+
+You do NOT:
+  - Run Loop Protocol — that is ralph-wiggum's domain (exec-plan in active/Protocol/)
+  - Self-verify and declare PASS — only Agent B sub-agent issues PASS
+  - Modify loop-review-verification-agent.txt or loop-frontend-design-agent.txt
+  - Continue past iteration 5 without human escalation
+
+========================================
+LOOP TYPE DETECTION
+========================================
+
+Determine which loop to run based on exec-plan location:
+
+  active/Protocol/  → Loop Protocol (ralph-wiggum handles this — do NOT use orchestrator)
+  active/Review/    → Loop Review   (orchestrator + Agent B sub-agent)
+  active/Frontend/  → Loop Frontend (orchestrator + Agent C sub-agent + Agent B sub-agent)
+
+========================================
+LOOP REVIEW — EXECUTION FLOW
+========================================
+
+You are working on an exec-plan in active/Review/.
+
+Step 1 — Act as Agent A:
+  Load: docs/references/loop-review-execution-agent.txt
+  Follow the Execution Agent's SESSION START PROCEDURE.
+  Build or fix Protocol + Node App per the exec-plan.
+
+Step 2 — Write handoff file:
+  When work is ready for verification, save:
+    docs/exec-plans/active/loop-review-handoff-[node_name].md
+  Use the HANDOFF FILE FORMAT from loop-review-execution-agent.txt.
+  → PostToolUse hook fires → "LOOP REVIEW VERIFICATION REQUIRED" message injected.
+
+Step 3 — Spawn Agent B sub-agent:
+  When you see "LOOP REVIEW VERIFICATION REQUIRED" from the hook:
+  Spawn Agent B as an independent sub-agent using the Agent tool.
+
+  AGENT B PROMPT TEMPLATE:
+  ---
+  This is a FRESH session. You have no memory of the Execution Agent's session.
+  You are Agent B (Verification Agent) for Loop Review, Iteration [N].
+
+  Reference file to load: docs/references/loop-review-verification-agent.txt
+  Handoff file to read:   docs/exec-plans/active/loop-review-handoff-[node_name].md
+
+  Execute the full verification sequence (V1 through V4).
+  Return your complete verification report.
+  If PASS: execute POST-PASS ACTIONS (PA-1, PA-2, PA-3) before returning.
+  ---
+
+  Sub-agent spawn parameters:
+    subagent_type: "general-purpose"
+    prompt: [fill AGENT B PROMPT TEMPLATE above]
+
+Step 4 — Process Agent B result:
+  PASS → Loop Review complete. Agent B has handled PA-1, PA-2, PA-3.
+  FAIL → Read Agent B's defect report.
+         Return to Step 1 (Agent A role) and fix HIGH priority defects first.
+         Write new handoff file → repeat from Step 2.
+
+Maximum iterations: 5
+If iteration 5 is still FAIL → write escalation report and notify user. Stop looping.
+
+========================================
+LOOP FRONTEND — EXECUTION FLOW
+========================================
+
+You are working on an exec-plan in active/Frontend/.
+
+Step 1 — Spawn Agent C sub-agent:
+  Spawn Agent C as an independent sub-agent using the Agent tool.
+
+  AGENT C PROMPT TEMPLATE:
+  ---
+  This is a FRESH session.
+  You are Agent C (Design Agent) for Loop Frontend.
+
+  Reference file to load:  docs/references/loop-frontend-design-agent.txt
+  exec-plan to follow:     [exec-plan path and contents]
+  Product-spec to read:    docs/product-specs/[node_name].md
+
+  Execute the full BUILD SEQUENCE from loop-frontend-design-agent.txt.
+  Write the design handoff file when complete.
+  Return: handoff file path + summary of what was built.
+  ---
+
+  Sub-agent spawn parameters:
+    subagent_type: "general-purpose"
+    prompt: [fill AGENT C PROMPT TEMPLATE above]
+
+Step 2 — Receive Agent C result:
+  Agent C writes: docs/exec-plans/active/loop-frontend-handoff-[node_name].md
+  → PostToolUse hook fires → "LOOP FRONTEND VERIFICATION REQUIRED" message injected.
+
+Step 3 — Spawn Agent B sub-agent:
+  When you see "LOOP FRONTEND VERIFICATION REQUIRED" from the hook:
+  Spawn Agent B as an independent sub-agent.
+
+  AGENT B PROMPT TEMPLATE (Frontend mode):
+  ---
+  This is a FRESH session. You have no memory of the Design Agent's session.
+  You are Agent B (Verification Agent) for Loop Frontend, Iteration [N].
+
+  Reference file to load: docs/references/loop-review-verification-agent.txt
+  Handoff file to read:   docs/exec-plans/active/loop-frontend-handoff-[node_name].md
+
+  Run V3 Implementation Check with focus on UI layer.
+  Verify: watermark presence, error handling, input validation, brand compliance.
+  V1, V2, V4 are optional for Loop Frontend — focus on V3 and V3.5.
+  Return your complete verification report.
+  If PASS: execute POST-PASS ACTIONS (PA-1, PA-2, PA-3) before returning.
+  ---
+
+Step 4 — Process Agent B result:
+  PASS → Loop Frontend complete. Agent B has handled PA-1, PA-2, PA-3.
+  FAIL → Read Agent B's defect report.
+         Re-spawn Agent C sub-agent with defect list as additional context.
+         Agent C fixes and writes new handoff → repeat from Step 3.
+
+Maximum iterations: 5
+If iteration 5 is still FAIL → write escalation report and notify user. Stop looping.
+
+========================================
+ITERATION TRACKING
+========================================
+
+Before spawning Agent B, determine the current iteration number:
+
+  Loop Review:   check docs/exec-plans/active/loop-review-report-[node_name]-*.md
+  Loop Frontend: check docs/exec-plans/active/loop-frontend-report-[node_name]-*.md
+
+  If no report exists → Iteration 1.
+  If report(s) exist  → Iteration = (count of existing reports) + 1.
+
+Always pass the correct iteration number to Agent B in the prompt template.
+
+========================================
+ESCALATION PROTOCOL
+========================================
+
+When iteration 5 fails:
+  1. Write escalation file:
+       docs/exec-plans/active/escalation-[node_name]-[YYYY-MM-DD].md
+  2. Content:
+       - HUMAN REVIEW REQUIRED — maximum iterations (5) reached
+       - Node: [node_name]
+       - Loop type: [Review / Frontend]
+       - Unresolved defects from iteration 5 report: [list]
+       - Recommendation: [specific guidance for human reviewer]
+  3. Do not spawn further sub-agents.
+  4. Notify user with escalation file path.
+
+========================================
+ORCHESTRATOR CONSTRAINTS REMINDER
+========================================
+
+Before spawning any sub-agent:
+  - [ ] exec-plan is in active/Review/ or active/Frontend/ (not Protocol/)
+  - [ ] Handoff file has been written and is complete
+  - [ ] Iteration count is within limit (≤ 5)
+  - [ ] Sub-agent prompt includes "This is a FRESH session."
+  - [ ] Sub-agent prompt includes the correct reference file path
+  - [ ] Sub-agent prompt includes the correct handoff file path
+  - [ ] Sub-agent prompt includes the correct iteration number

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ':*)",
+      "Bash(npm install *)",
+      "Bash(npx next *)",
+      "Edit(/.claude/skills/code-reviewer/**)",
+      "Bash(wc -l lib/prompt.ts app/page.tsx next.config.ts)",
+      "Bash(ls -lah .env.local)",
+      "Bash(find . -type f \\\\\\( -name \"*.mjs\" -o -name \".gitignore\" \\\\\\) ! -path \"./.next/*\" ! -path \"./node_modules/*\" -exec ls -lah {} \\\\;)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); pkg=d.get\\('packages',{}\\).get\\('node_modules/@google/genai',{}\\); print\\('version:', pkg.get\\('version','not found'\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version'\\)\\)\")",
+      "Bash(python3 -c \" import json with open\\('c:/Users/USER01/Downloads/cai-harness-print/project.10_print/node_modules/@google/genai/package.json'\\) as f: d = json.load\\(f\\) print\\('version:', d.get\\('version'\\)\\) \")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\USER01\\Downloads\\cai-harness-print"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d);const p=(j.tool_input||{}).file_path||'';if(/_context[\\/]protocol[\\/]protocol-[^\\/]+\\.(txt|md)$/.test(p)){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:'\\u26a0\\ufe0f LOOP A REQUIRED: Protocol file modified. Load docs/references/loop-a-verification-agent.txt and run all 4 checks before Stage B. Do not write the handoff file until OVERALL VERDICT: PASS.'}}))}});\" 2>/dev/null || true",
+            "statusMessage": "Protocol 파일 감지 중..."
+          }
+        ]
+      }
+    ]
+  }
+}

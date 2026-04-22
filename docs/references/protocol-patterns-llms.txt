@@ -1,0 +1,132 @@
+PROTOCOL PATTERNS REFERENCE — CAI / Project-Twelve
+For LLM consumption. Use this when writing or reviewing a Principle Protocol.
+
+========================================
+PATTERN 1: ONTOLOGICAL ANCHORING
+========================================
+Purpose: Prevent hallucination by defining the nature of the input.
+Where: CONTEXT > Ontological Status
+
+Template:
+  "The input [data type] is a [physical/conceptual definition].
+   It is [what it IS], not [what it is NOT].
+   The model operates WITHIN this reality, not beyond it."
+
+Example (N09):
+  "The input image is a 'Completed Architectural Reality.'
+   It is a fixed physical object, not a sketch or concept.
+   The model re-renders this reality — it does not create freely."
+
+Anti-pattern:
+  "Use the image as reference." → Too weak. Model may deviate.
+
+========================================
+PATTERN 2: IMMUTABLE CONSTANTS DECLARATION
+========================================
+Purpose: Protect fixed elements from modification.
+Where: CONTEXT > Immutable Constants
+
+Template:
+  "[Element] is an Immutable Constant.
+   Only [variable elements] change.
+   Any output that modifies [element] is invalid."
+
+Example (N09):
+  "The building's proportions, structure, and details are Immutable Constants.
+   Only the observer (camera) position changes.
+   Any output that alters building geometry is invalid."
+
+========================================
+PATTERN 3: INTUITION-TO-COORDINATE TRANSLATION
+========================================
+Purpose: Convert abstract user commands to measurable parameters.
+Where: ACTION PROTOCOL > Step 1
+
+Template:
+  "Convert user input '[abstract command]' using this mapping:
+   - '[direction word]' → [Azimuth]°, [altitude]m
+   - '[scale word]' → [distance]m, [lens]mm
+   All actions execute on coordinates, never on abstract language."
+
+Example mapping table:
+  Street View (front)  → Azimuth 0°,   Alt 1.6m,  23mm TS
+  Bird's eye           → Azimuth 0°,   Alt 150m+, 32mm
+  Corner ISO           → Azimuth 135°, Alt 45°,   45mm
+  Detail close-up      → Distance 10m, Alt 1.6m,  110mm macro
+
+========================================
+PATTERN 4: BLIND SPOT INFERENCE
+========================================
+Purpose: Handle non-visible areas without returning original or failing.
+Where: ACTION PROTOCOL > Step N + COMPLIANCE CHECK > Failure Mode
+
+Template:
+  "IF target viewpoint reveals areas not visible in input:
+     1. Extract Design DNA from visible areas
+        (geometry ratios, material language, structural logic, style patterns)
+     2. Apply Inside-Out inference:
+        - Service elements follow internal core logic
+        - Materials continue visible surface patterns
+        - Proportions maintain established ratios
+     3. Reconstruct hidden areas using Design DNA
+   NEVER return original image.
+   NEVER output 'cannot generate.'
+   NEVER leave blank spaces."
+
+========================================
+PATTERN 5: STEP DEPENDENCY CHAIN
+========================================
+Purpose: Ensure each Action Step uses the previous step's output.
+Where: ACTION PROTOCOL > each Step
+
+Template:
+  "Step N: [Action description]
+   Using the [specific output from Step N-1],
+   [execute this step's action]."
+
+Anti-pattern:
+  "Step 2: Select camera settings." → Disconnected from Step 1 output.
+
+Correct:
+  "Step 2: Using the target coordinates calculated in Step 1,
+   select the appropriate camera and lens from the optical scenario map."
+
+========================================
+PATTERN 6: COMPLIANCE CHECK STRUCTURE
+========================================
+Purpose: Build self-verification into the Protocol.
+Where: COMPLIANCE CHECK
+
+Required three-part structure:
+  ## Pre-flight (before generation)
+    - Verify input is complete
+    - Confirm reference geometry is locked
+    - Confirm target coordinates are calculated
+
+  ## Post-generation (after generation)
+    - Verify immutable constants preserved
+    - Verify all Action Steps executed
+    - Verify boundary conditions handled
+
+  ## Failure Mode (IF-THEN branches)
+    - IF [specific condition]: [specific alternative action]
+    - Never use "if needed" — always define the trigger condition precisely
+
+========================================
+KNOWN ANTI-PATTERNS TO AVOID
+========================================
+
+1. Vague quantifiers: "natural", "appropriate", "slightly"
+   → Replace with specific numbers
+
+2. Missing failure branches: Steps with no IF-THEN for edge cases
+   → Every Step that can fail must have a Failure Mode entry
+
+3. Passive instructions: "The building should be preserved"
+   → Use active enforcement: "Lock building geometry as Immutable Constant BEFORE any generation"
+
+4. Single-layer compliance: Only Post-generation check
+   → Always include Pre-flight to catch problems before generation
+
+5. Protocol in user message: "Here is your protocol: ..."
+   → Protocol must be in system parameter only

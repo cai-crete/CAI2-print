@@ -1,0 +1,163 @@
+API PATTERNS REFERENCE — CAI
+For LLM consumption. Standard patterns for Gemini API integration in node apps.
+
+========================================
+PATTERN 1: STANDARD NODE API CALL
+========================================
+
+// lib/buildSystemPrompt.ts
+export function buildSystemPrompt(
+  principleProtocol: string,
+  knowledgeDocs: string[] = []
+): string {
+  if (!principleProtocol) {
+    throw new Error("Principle Protocol is required");
+  }
+  return [principleProtocol, ...knowledgeDocs].join("\n\n---\n\n");
+}
+
+// app/api/generate/route.ts
+import { GoogleGenAI } from "@google/genai";
+import { buildSystemPrompt } from "@/lib/buildSystemPrompt";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+export async function POST(request: Request) {
+  try {
+    const { userInput } = await request.json();
+
+    if (!userInput || typeof userInput !== "string") {
+      return Response.json({ error: "Invalid input" }, { status: 400 });
+    }
+
+    const systemPrompt = buildSystemPrompt(
+      principleProtocol,    // import from protocol file
+      [knowledgeDoc1, ...]  // import from knowledge doc files
+    );
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      config: { systemInstruction: systemPrompt },
+      contents: [{ role: "user", parts: [{ text: userInput }] }],
+    });
+
+    return Response.json({
+      result: response.text,
+      usageMetadata: response.usageMetadata,
+    });
+
+  } catch (error) {
+    console.error("API Error:", error);
+    return Response.json(
+      { error: "Generation failed. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+========================================
+PATTERN 2: IMAGE INPUT (Vision)
+========================================
+
+// For nodes that take image input
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-pro",
+  config: { systemInstruction: systemPrompt },
+  contents: [{
+    role: "user",
+    parts: [
+      {
+        inlineData: {
+          mimeType: "image/jpeg",  // or image/png, image/webp
+          data: base64ImageData,
+        },
+      },
+      {
+        text: userTextRequest,
+      },
+    ],
+  }],
+});
+
+========================================
+PATTERN 3: PROTOCOL FILE LOADING
+========================================
+
+// Load protocol from _context/ at build time (recommended)
+import fs from "fs";
+import path from "path";
+
+const protocolPath = path.join(
+  process.cwd(),
+  "_context",
+  "protocol-[node_name]-v[N].txt"
+);
+export const principleProtocol = fs.readFileSync(protocolPath, "utf-8");
+
+// Or as module import (for smaller protocols)
+// lib/protocol.ts
+export const principleProtocol = `
+# SYSTEM: [node_name]
+...
+`;
+
+========================================
+PATTERN 4: RETRY WITH EXPONENTIAL BACKOFF
+========================================
+
+async function callWithRetry(
+  fn: () => Promise<any>,
+  maxRetries = 2
+): Promise<any> {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (i === maxRetries) throw error;
+      // 429 = quota exceeded, 503 = service unavailable
+      if (error.status === 429 || error.status === 503) {
+        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
+========================================
+PATTERN 5: ENVIRONMENT SETUP
+========================================
+
+// .env.local (never commit this file)
+GEMINI_API_KEY=AIza...
+
+// .gitignore (always include)
+.env.local
+.env*.local
+
+// next.config.ts — server-only env vars
+const nextConfig = {
+  serverExternalPackages: ["@google/genai"],
+};
+
+========================================
+MODEL REFERENCE
+========================================
+
+Model ID          | Use case
+------------------|------------------------------------------
+gemini-2.5-pro    | Default for all CAI nodes (highest quality)
+gemini-2.5-flash  | Development/testing (faster, lower cost)
+
+Always use gemini-2.5-pro for production Protocol execution.
+
+========================================
+SECURITY CHECKLIST
+========================================
+
+[ ] GEMINI_API_KEY in .env.local only
+[ ] Protocol content served from server side only (never exposed to client)
+[ ] systemInstruction always populated (never null/undefined)
+[ ] Input validation: type check + length limit before API call
+[ ] Error messages to user: generic (no internal details)
+[ ] Image upload: validate file type and size before processing

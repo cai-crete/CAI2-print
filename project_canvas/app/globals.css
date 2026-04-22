@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   CAI CANVAS — 디자인 토큰
+   출처: docs/design-style/design-style-guide-CAI.md §A.1 ~ §A.9
+   COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.
+   ========================================================================== */
+
+:root {
+  /* ── 컬러 시스템 (§A.3) ──────────────────────────────────────────────── */
+  --color-black:    #000000;
+  --color-white:    #FFFFFF;
+  --color-gray-500: #333333;  /* 보조 텍스트, 아이콘 기본 */
+  --color-gray-400: #666666;  /* 캡션, 힌트 */
+  --color-gray-300: #999999;  /* 비활성 요소 */
+  --color-gray-200: #CCCCCC;  /* 인터랙션 보더 */
+  --color-gray-100: #EEEEEE;  /* 구분선 전용 */
+  --color-app-bg:   #F5F5F5;  /* 작업 영역 배경 */
+
+  /* ── 폰트 패밀리 (§A.1) ──────────────────────────────────────────────── */
+  --font-family-bebas:      var(--font-bebas), 'Bebas Neue', sans-serif;
+  --font-family-pretendard: var(--font-pretendard), -apple-system, BlinkMacSystemFont,
+                            'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+
+  /* ── UI 규격 토큰 (§A.4 · §A.6) ─────────────────────────────────────── */
+  --header-h:   3.5rem;   /* 56px */
+  --sidebar-w:  18rem;    /* 288px */
+  --h-cta-xl:   3.25rem;  /* 52px — CTA-primary/secondary */
+  --h-cta-lg:   2.75rem;  /* 44px — options, tabs, icon buttons */
+  --h-cta-sm:   2.25rem;  /* 36px — secondary-small (예외) */
+  --h-cta-xs:   1.75rem;  /* 28px — tertiary-small (예외) */
+
+  /* ── 형태 토큰 (§A.7.2) ─────────────────────────────────────────────── */
+  --radius-box:  0.625rem; /* 10px */
+  --radius-pill: 5rem;     /* 80px */
+
+  /* ── 그림자 (§A.7.2) ────────────────────────────────────────────────── */
+  --shadow-float: 0 10px 15px -3px rgba(0, 0, 0, 0.10),
+                  0 4px  6px  -4px rgba(0, 0, 0, 0.05);
+
+  /* ── 간격 토큰 (§A.7.1) ─────────────────────────────────────────────── */
+  --space-1: 0.5rem;   /*  8px */
+  --space-2: 1rem;     /* 16px */
+  --space-3: 1.25rem;  /* 20px */
+  --space-4: 2rem;     /* 32px */
+}
+
+/* ── 전역 리셋 ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family-pretendard);
+  background-color: var(--color-app-bg);
+  color: var(--color-black);
+}
+
+#__next, main { height: 100%; }
+
+/* ── 유틸리티 ────────────────────────────────────────────────────────── */
+.font-bebas      { font-family: var(--font-family-bebas); }
+.font-pretendard { font-family: var(--font-family-pretendard); }
+
+/* 타이틀 (§A.2) */
+.text-title    { font-family: var(--font-family-bebas); font-size: 1rem;    line-height: 1;    letter-spacing: 0.03em; }
+.text-subtitle { font-family: var(--font-family-bebas); font-size: 0.875rem; line-height: 1;   letter-spacing: 0.03em; }
+.text-body-3   { font-family: var(--font-family-pretendard); font-size: 0.875rem; line-height: 1.4; }
+.text-caption  { font-family: var(--font-family-pretendard); font-size: 0.75rem;  line-height: 1.2; }
+
+/* 아이콘 컨테이너 (§A.9) */
+.icon-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;    /* 24px 프레임 */
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+.icon-frame svg { width: 1.25rem; height: 1.25rem; } /* 20px 실질 */
+
+/* 툴바 아이콘 버튼 (§A.5 · §A.8.1) */
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-cta-lg);
+  height: var(--h-cta-lg);
+  border-radius: var(--radius-box);
+  border: none;
+  background: transparent;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: background-color 100ms ease, color 100ms ease;
+  flex-shrink: 0;
+}
+.toolbar-btn:hover { background-color: var(--color-gray-100); }
+.toolbar-btn:active { background-color: var(--color-gray-200); }
+.toolbar-btn.active {
+  background-color: var(--color-gray-100);
+  color: var(--color-black);
+}
+
+/* 구분선 (§A.3 gray-100) */
+.divider-h { width: 100%; height: 1px; background: var(--color-gray-100); }
+.divider-v { height: 100%; width: 1px;  background: var(--color-gray-100); }
+
+/* 스크롤바 숨김 */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

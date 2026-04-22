@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const pkg = require\\('c:/Users/USER01/Downloads/cai-harness-print/project.10_print/node_modules/@google/genai/package.json'\\); console.log\\('version:', pkg.version\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(python .claude/skills/code-reviewer/scripts/code_quality_checker.py project.10_print --verbose)",
+      "Bash(python .claude/skills/code-reviewer/scripts/code_quality_checker.py \"c:/Users/USER01/Downloads/cai-harness-print/project.10_print\" --verbose)",
+      "Bash(mv docs/exec-plans/active/loop-a-report-print-v1.md docs/exec-plans/completed/)",
+      "Bash(mv docs/exec-plans/active/code-review-n10-print-2026-04-15.md docs/exec-plans/completed/)",
+      "Bash(mv docs/exec-plans/active/loop-b-report-n10-print-2026-04-15-iter1.md docs/exec-plans/completed/)",
+      "Bash(mv docs/exec-plans/active/loop-b-report-n10-print-2026-04-15-iter2.md docs/exec-plans/completed/)",
+      "Bash(mv docs/exec-plans/active/code-review-n10-print-2026-04-15-iter2.md docs/exec-plans/completed/)",
+      "Bash(python .claude/skills/code-reviewer/scripts/code_quality_checker.py project.10_print --json)",
+      "Bash(python -c ' *)",
+      "Read(//c/temp/**)",
+      "Bash(python .claude/skills/code-reviewer/scripts/pr_analyzer.py project.10_print --verbose)",
+      "Bash(python .claude/skills/code-reviewer/scripts/pr_analyzer.py project.10_print --base HEAD~1 --verbose)",
+      "Bash(python .claude/skills/code-reviewer/scripts/pr_analyzer.py . --base HEAD~1 --verbose)",
+      "Bash(npx tsc *)",
+      "Bash(find \"\\\\\\\\loft254\\\\project\\\\00_수주개발\\\\# AI test\\\\Harness Engineering\\\\harness_engineering-v2\" -type f)",
+      "Read(///loft254/project/00_수주개발/# AI test/Harness Engineering/harness_engineering-v2/docs/exec-plans/completed/**)",
+      "Read(///loft254/project/00_수주개발/# AI test/Harness Engineering/harness_engineering-v2/docs/exec-plans/**)",
+      "Bash(cp \"\\\\\\\\\\\\\\\\loft254\\\\\\\\project\\\\\\\\00_수주개발\\\\\\\\# AI test\\\\\\\\Harness Engineering\\\\\\\\harness_engineering-v2\\\\\\\\docs\\\\\\\\exec-plans\\\\\\\\active\\\\\\\\Frontend\\\\\\\\design-system-ops-guide-260420.md\" \"\\\\\\\\\\\\\\\\loft254\\\\\\\\project\\\\\\\\00_수주개발\\\\\\\\# AI test\\\\\\\\Harness Engineering\\\\\\\\harness_engineering-v2\\\\\\\\docs\\\\\\\\exec-plans\\\\\\\\completed\\\\\\\\Frontend\\\\\\\\design-system-ops-guide-260420.md\")",
+      "Bash(rm \"\\\\\\\\\\\\\\\\loft254\\\\\\\\project\\\\\\\\00_수주개발\\\\\\\\# AI test\\\\\\\\Harness Engineering\\\\\\\\harness_engineering-v2\\\\\\\\docs\\\\\\\\exec-plans\\\\\\\\active\\\\\\\\Frontend\\\\\\\\design-system-ops-guide-260420.md\")",
+      "Read(///loft254/project/00_수주개발/# AI test/Harness Engineering/harness_engineering-v2/docs/**)",
+      "Skill(critique)",
+      "Skill(critique:*)",
+      "Bash(npm run *)",
+      "Bash(npx impeccable *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\USER01\\Downloads\\cai-harness-print\\project.10_print\\sources\\document_template",
+      "c:\\Users\\USER01\\Downloads\\cai-harness-print\\project.10_print\\app\\api\\library",
+      "c:\\Users\\USER01\\Downloads\\cai-harness-print\\docs\\exec-plans",
+      "c:\\Users\\USER01\\Downloads\\cai-harness-print\\docs\\exec-plans\\active",
+      "\\\\loft254\\project\\00_수주개발\\# AI test\\Harness Engineering\\harness_engineering-v2\\docs\\design-docs",
+      "\\\\loft254\\project\\00_수주개발\\# AI test\\Harness Engineering\\harness_engineering-v2\\docs\\exec-plans\\active\\Frontend",
+      "c:\\Users\\USER01\\.claude\\projects\\c--Users-USER01-Desktop-CAI\\memory"
+    ]
+  }
+}

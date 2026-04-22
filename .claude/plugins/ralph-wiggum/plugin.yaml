@@ -1,0 +1,25 @@
+# ralph-wiggum Plugin — Harness LOOP A Edition
+
+name: ralph-wiggum
+description: |
+  Iterative, self-referential AI development loop for protocol verification.
+  Implements the Ralph Wiggum technique: a Stop hook that blocks Claude's exit
+  and feeds the same prompt back until a completion promise is detected or
+  the maximum iteration count is reached.
+version: 1.0.0
+source: https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum
+
+## Harness Configuration
+max_iterations_default: 3
+
+## Hooks
+hooks:
+  - type: stop
+    script: hooks/stop-hook.sh
+
+## Commands
+commands:
+  - name: ralph-loop
+    file: commands/ralph-loop.md
+  - name: cancel-ralph
+    file: commands/cancel-ralph.md

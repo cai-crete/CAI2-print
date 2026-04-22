@@ -1,49 +1,50 @@
-## 방금 무엇을 했는가
+## 작업 일시: 2026-04-22
 
-노드 실행 및 썸네일 로직 전면 개편 완료 + 수동 검증 통과 (2026-04-22).
+## 방금 무엇을 했는지
 
-### 변경 파일 (7개)
+노드 연결선 시각화 v2 전면 재설계 완료. TypeScript 빌드 clean 확인.
 
-- `types/canvas.ts` — `CanvasNode`에 `hasThumbnail`, `thumbnailData` 필드 추가
-- `app/page.tsx` — 통합 사이드바 상태(`activeSidebarNodeType`) + 핸들러 6종 재설계
-- `components/RightSidebar.tsx` — 패널 모드 / SELECT TOOLS 모드 분기 전면 개편
-- `components/NodeCard.tsx` — `hasThumbnail` prop + 썸네일/플레이스홀더 분기 렌더링
-- `components/InfiniteCanvas.tsx` — `hasThumbnail` prop 전달 추가
-- `components/LeftToolbar.tsx` — 추가(+) 버튼 및 관련 prop 완전 제거
-- `components/ExpandedView.tsx` — `onAddClick`, `hideAddButton` 전달 제거
+### 핵심 변경 사항
 
-### 확정된 동작
+1. **SVG 렌더링 버그 수정** (components/EdgeLayer.tsx)
+   - 기존: transform layer 내부 → 상위 overflow:hidden에 클리핑 → 베지어 선 안 보임
+   - 수정: SVG를 viewport 레벨로 이동 (wrapperRef 직속), 월드→스크린 좌표 변환 추가
+   - strokeWidth 1.5 고정 (viewport 레벨이므로 scale 보정 불필요)
 
-- `planners`, `image` 탭 클릭 → 즉시 expand 진입
-- 나머지 탭 클릭 → 패널 열림, "→" 버튼으로 expand 진입
-- 탭 재클릭 → SELECT TOOLS 복귀
-- expand "←" 또는 Escape → 캔버스 복귀 + `hasThumbnail: true`
-- 썸네일 단일 클릭 → 해당 노드 패널 자동 열림
-- 빈 캔버스 클릭 → 패널 닫힘 + SELECT TOOLS 복귀
+2. **포트 인디케이터** (components/NodeCard.tsx)
+   - PortShape: 'none' | 'circle-solid' | 'circle-outline' | 'diamond-solid' | 'diamond-outline'
+   - 부모 단일: circle-solid(●검정), 부모 다중자식: diamond-solid(◆검정)
+   - 자식 단일: circle-outline(○흰+검정stroke), 자식 다중부모: diamond-outline(◇흰+stroke)
+   - props 변경: hasLeftPort/hasRightPort(boolean) → portLeft/portRight(PortShape)
 
+3. **포트 타입 계산** (components/InfiniteCanvas.tsx)
+   - EdgeLayer를 transform layer 밖으로 이동, scale+offset 전달
+   - getPortRight: anyTargetIsMultiParent → diamond-solid, else circle-solid
+   - getPortLeft: inCount=1 → circle-outline, >1 → diamond-outline
+   - onNodePositionCommit: () → (id: string), 드래그 완료 시 autoPlaced:false 처리
 
-## 어디까지 완료됐는가
+4. **Auto Layout** (lib/autoLayout.ts — 신규)
+   - subtreeHeight(): 노드+서브트리 수직 공간 재귀 계산
+   - placeNewChild(): 새 자식 위치 + 충돌 autoPlaced 노드 pushdown map 반환
 
-수동 검증 통과. 작업지시서 `completed/Frontend/`로 이동 완료.
+5. **타입 정의** (types/canvas.ts)
+   - CARD_W_PX=280, CARD_H_PX=198, COL_GAP_PX=40, ROW_GAP_PX=16 추가
+   - CanvasNode: autoPlaced?, parentId? 추가
+   - PortShape 타입 export
 
-전체 완료 목록 (캔버스 UI):
-- 아트보드 가로 A4 비율 rem 변환
-- expand 버튼 원형 명시 (NodeCard)
-- 사이드바 토글 버튼 삭제
-- 탭 간격 8px
-- displayLabel 분리 (PLAN/IMAGE/ELEVATION/DIAGRAM)
-- cursor/handle 단일 토글
-- 액션 버튼 아트보드 외부 배치
-- expand 사이드바: 단일 패널 + 빈 프레임
-- expand 사이드바: 축소버튼 독립 pill + 노드탭 SELECT TOOLS 동일 형태
-- expand 사이드바: IconCollapse (← 좌측 화살표)
-- expand 사이드바: 패널 radius-box (10px)
-- expand 시 LeftToolbar 공통 적용
-- **노드 실행 및 썸네일 로직 전면 개편** ← 금일 완료
+6. **데모 다중 부모** (app/page.tsx)
+   - demo-edge-3: planners(1)→image(3) 추가 → image가 다중 부모(diamond-outline)
 
+## 어디까지 완료됐는지
 
-## 다음에 무엇을 해야 하는가
+- 모든 파일 수정 완료
+- TypeScript 빌드 clean (next build 통과)
+- 남은 것: 브라우저 UI 직접 검증
 
-1. `npm run dev` 실행 후 UI 최종 검증 (추가 버그 확인)
-2. 각 노드별 실제 패널 UI 설계 및 구현 (현재 임시 플레이스홀더)
-3. expand 내부 작업 화면 구현 (API 연동 후)
+## 다음에 무엇을 해야 하는지
+
+1. `npm run dev` → 브라우저 확인:
+   - 베지어 선 3개 표시 여부
+   - planners·plan 우측 diamond-solid(◆), image 좌측 diamond-outline(◇)
+   - 선택 시 연결 엣지 강조, 나머지 희미
+2. UI 검증 완료 후 exec-plan → completed/ 이동

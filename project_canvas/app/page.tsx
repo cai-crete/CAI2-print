@@ -1,26 +1,53 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { CanvasNode, NodeType, NODE_DEFINITIONS, NODE_ORDER } from '@/types/canvas';
+import { CanvasNode, CanvasEdge, NodeType, NODE_DEFINITIONS, NODE_ORDER, CARD_W_PX } from '@/types/canvas';
 import InfiniteCanvas from '@/components/InfiniteCanvas';
 import LeftToolbar    from '@/components/LeftToolbar';
 import RightSidebar   from '@/components/RightSidebar';
 import ExpandedView   from '@/components/ExpandedView';
 
-/* ── 7개 노드 초기 배치 ─────────────────────────────────────────── */
-const CARD_W = 280, CARD_GAP = 40, ROW_H = 320;
+/* ── 데모 레이아웃
+   NODE_ORDER 인덱스: planners=0, plan=1, image=2, elevation=3,
+                      viewpoint=4, diagram=5, print=6, sketch=7
+   id = String(index + 1)
+
+   Group A (상단): planners(1) → plan(2) + image(3)  ← 1부모 여러자식, circle 포트
+   Group B (하단): sketch(8) + diagram(6) → elevation(4)  ← 다중부모, diamond 포트
+   나머지: viewpoint(5), print(7) — 연결 없음
+   ─────────────────────────────────────────────────────────────── */
+const CX = CARD_W_PX + 200; // 컬럼 간격: 카드 폭(280) + 200px gap = 480px
+
+const DEMO_POSITIONS: Record<string, { x: number; y: number }> = {
+  planners:  { x: 0,      y: 0   },  // Group A 부모
+  plan:      { x: CX,     y: 0   },  // Group A 자식 1
+  image:     { x: CX,     y: 214 },  // Group A 자식 2
+  sketch:    { x: 0,      y: 460 },  // Group B 부모 1
+  diagram:   { x: 0,      y: 674 },  // Group B 부모 2
+  elevation: { x: CX,     y: 567 },  // Group B 자식 (다중부모)
+  viewpoint: { x: CX * 2, y: 0   },  // 독립
+  print:     { x: CX * 2, y: 214 },  // 독립
+};
 
 const INITIAL_NODES: CanvasNode[] = NODE_ORDER.map((type, i) => ({
   id: String(i + 1),
   type,
   title: `${NODE_DEFINITIONS[type].caption} #1`,
-  position: {
-    x: (i % 4) * (CARD_W + CARD_GAP),
-    y: Math.floor(i / 4) * ROW_H,
-  },
+  position: DEMO_POSITIONS[type],
   instanceNumber: 1,
-  hasThumbnail: false,
+  hasThumbnail: ['planners', 'plan', 'image'].includes(type),
 }));
+
+/* ── 데모 엣지 4개
+   Group A: planners→plan, planners→image  (portRight=circle-solid)
+   Group B: sketch→elevation, diagram→elevation  (portRight=diamond-solid)
+   ─────────────────────────────────────────────────────────────── */
+const INITIAL_EDGES: CanvasEdge[] = [
+  { id: 'demo-edge-1', sourceId: '1', targetId: '2' }, // planners → plan
+  { id: 'demo-edge-2', sourceId: '1', targetId: '3' }, // planners → image
+  { id: 'demo-edge-3', sourceId: '8', targetId: '4' }, // sketch → elevation
+  { id: 'demo-edge-4', sourceId: '6', targetId: '4' }, // diagram → elevation
+];
 
 /* 클릭 시 패널 없이 즉시 expand로 진입하는 노드 타입 */
 const DIRECT_EXPAND_NODES: NodeType[] = ['planners', 'image'];
@@ -39,6 +66,10 @@ export default function CanvasPage() {
   const [nodes,        setNodes]        = useState<CanvasNode[]>(INITIAL_NODES);
   const [history,      setHistory]      = useState<CanvasNode[][]>([INITIAL_NODES]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  /* ── edges ───────────────────────────────────────────────────────── */
+  const [edges,      setEdges]      = useState<CanvasEdge[]>(INITIAL_EDGES);
+  const [newEdgeIds, setNewEdgeIds] = useState<Set<string>>(new Set());
 
   /* ── 선택 / 확장 상태 ────────────────────────────────────────────── */
   const [selectedNodeId,       setSelectedNodeId]       = useState<string | null>(null);
@@ -89,7 +120,7 @@ export default function CanvasPage() {
     const currentNodes = nodes;
     const existing = currentNodes.filter(n => n.type === type);
     const num = existing.length + 1;
-    const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
+    const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W_PX / 2;
     const cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
     const newNode: CanvasNode = {
       id: crypto.randomUUID(),
@@ -109,7 +140,7 @@ export default function CanvasPage() {
     const currentNodes = nodes;
     const existing = currentNodes.filter(n => n.type === 'sketch');
     const num = existing.length + 1;
-    const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
+    const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W_PX / 2;
     const cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
     const newNode: CanvasNode = {
       id: crypto.randomUUID(),
@@ -143,8 +174,10 @@ export default function CanvasPage() {
     setNodes(prev => prev.map(n => n.id === id ? { ...n, position: pos } : n));
   }, []);
 
-  const commitNodePosition = useCallback(() => {
-    setHistory(prev => [...prev.slice(0, historyIndex + 1), nodes]);
+  const commitNodePosition = useCallback((id: string) => {
+    const next = nodes.map(n => n.id === id ? { ...n, autoPlaced: false } : n);
+    setNodes(next);
+    setHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
     setHistoryIndex(i => i + 1);
   }, [nodes, historyIndex]);
 
@@ -209,6 +242,7 @@ export default function CanvasPage() {
       if (prev === id) setActiveSidebarNodeType(null);
       return prev === id ? null : prev;
     });
+    setEdges(prev => prev.filter(e => e.sourceId !== id && e.targetId !== id));
     pushHistory(nodes.filter(n => n.id !== id));
   }, [nodes, pushHistory]);
 
@@ -267,6 +301,8 @@ export default function CanvasPage() {
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <InfiniteCanvas
             nodes={nodes}
+            edges={edges}
+            newEdgeIds={newEdgeIds}
             scale={scale}
             offset={offset}
             activeTool={activeTool}

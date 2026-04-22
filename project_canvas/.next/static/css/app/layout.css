@@ -355,6 +355,19 @@ html, body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+@keyframes edge-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.edge-entrance {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: edge-draw 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 @property --tw-rotate-x {
   syntax: "*";
   inherits: false;

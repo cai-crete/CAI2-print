@@ -1,13 +1,16 @@
 'use client';
 
 import { useRef, useCallback, useEffect } from 'react';
-import { CanvasNode } from '@/types/canvas';
+import type { CanvasNode, CanvasEdge, PortShape } from '@/types/canvas';
 import NodeCard from './NodeCard';
+import EdgeLayer from './EdgeLayer';
 
 type ActiveTool = 'cursor' | 'handle';
 
 interface Props {
   nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  newEdgeIds: Set<string>;
   scale: number;
   offset: { x: number; y: number };
   activeTool: ActiveTool;
@@ -15,7 +18,7 @@ interface Props {
   onScaleChange: (s: number) => void;
   onOffsetChange: (o: { x: number; y: number }) => void;
   onNodePositionChange: (id: string, pos: { x: number; y: number }) => void;
-  onNodePositionCommit: () => void;
+  onNodePositionCommit: (id: string) => void;
   onNodeSelect: (id: string) => void;
   onNodeDeselect: () => void;
   onNodeExpand: (id: string) => void;
@@ -29,12 +32,30 @@ const MAX_SCALE   = 4;
 const DRAG_THRESH = 6; /* px — 이 이상 움직여야 드래그로 판정 */
 
 export default function InfiniteCanvas({
-  nodes, scale, offset, activeTool, selectedNodeId,
+  nodes, edges, newEdgeIds, scale, offset, activeTool, selectedNodeId,
   onScaleChange, onOffsetChange,
   onNodePositionChange, onNodePositionCommit,
   onNodeSelect, onNodeDeselect, onNodeExpand,
   onNodeDuplicate, onNodeDelete,
 }: Props) {
+  /* ── 포트 타입 계산 ──────────────────────────────────────────────── */
+  const inCount  = (id: string) => edges.filter(e => e.targetId === id).length;
+  const outCount = (id: string) => edges.filter(e => e.sourceId === id).length;
+
+  const getPortRight = (id: string): PortShape => {
+    if (outCount(id) === 0) return 'none';
+    const anyTargetIsMultiParent = edges
+      .filter(e => e.sourceId === id)
+      .some(e => inCount(e.targetId) > 1);
+    return anyTargetIsMultiParent ? 'diamond-solid' : 'circle-solid';
+  };
+
+  const getPortLeft = (id: string): PortShape => {
+    const ins = inCount(id);
+    if (ins === 0) return 'none';
+    return ins === 1 ? 'circle-outline' : 'diamond-outline';
+  };
+
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   /* ── 최신 값 ref 추적 (클로저 문제 방지) ────────────────────────── */
@@ -112,8 +133,9 @@ export default function InfiniteCanvas({
       if (pendingNodeId.current) {
         if (draggingNodeId.current) {
           /* 드래그 완료 → 히스토리 커밋 */
+          const committedId = draggingNodeId.current;
           draggingNodeId.current = null;
-          onNodePositionCommit();
+          onNodePositionCommit(committedId);
         } else {
           /* 클릭 판정 → 선택 */
           onNodeSelect(pendingNodeId.current);
@@ -185,6 +207,16 @@ export default function InfiniteCanvas({
         cursor,
       }}
     >
+      {/* ── 엣지 SVG 레이어 — viewport 레벨 (transform layer 밖) ──── */}
+      <EdgeLayer
+        nodes={nodes}
+        edges={edges}
+        selectedNodeId={selectedNodeId}
+        newEdgeIds={newEdgeIds}
+        scale={scale}
+        offset={offset}
+      />
+
       {/* ── 캔버스 변환 레이어 ──────────────────────────────────────── */}
       <div
         data-canvas-layer="true"
@@ -196,6 +228,7 @@ export default function InfiniteCanvas({
           willChange: 'transform',
         }}
       >
+        {/* ── 노드 카드 ────────────────────────────────────────────── */}
         {nodes.map(node => (
           <div
             key={node.id}
@@ -203,6 +236,7 @@ export default function InfiniteCanvas({
               position: 'absolute',
               left: node.position.x,
               top: node.position.y,
+              zIndex: 1,
             }}
           >
             <NodeCard
@@ -214,6 +248,8 @@ export default function InfiniteCanvas({
               onDelete={onNodeDelete}
               onMouseDown={handleNodeMouseDown}
               hasThumbnail={node.hasThumbnail}
+              portLeft={getPortLeft(node.id)}
+              portRight={getPortRight(node.id)}
             />
           </div>
         ))}

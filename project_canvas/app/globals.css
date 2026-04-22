@@ -110,3 +110,14 @@ html, body {
 /* 스크롤바 숨김 */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 엣지 진입 애니메이션 — pathLength="1" 기준 dashoffset 드로잉 */
+@keyframes edge-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+.edge-entrance {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: edge-draw 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

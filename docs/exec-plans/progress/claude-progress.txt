@@ -1,50 +1,41 @@
-## 작업 일시: 2026-04-22
+## Claude Progress Log — 2026-04-23 (세션 13)
 
-## 방금 무엇을 했는지
+---
 
-노드 연결선 시각화 v2 전면 재설계 완료. TypeScript 빌드 clean 확인.
+### 방금 무엇을 했는가
 
-### 핵심 변경 사항
+**이슈 1: sketch-to-image Generate 500 오류 수정**
 
-1. **SVG 렌더링 버그 수정** (components/EdgeLayer.tsx)
-   - 기존: transform layer 내부 → 상위 overflow:hidden에 클리핑 → 베지어 선 안 보임
-   - 수정: SVG를 viewport 레벨로 이동 (wrapperRef 직속), 월드→스크린 좌표 변환 추가
-   - strokeWidth 1.5 고정 (viewport 레벨이므로 scale 보정 불필요)
+- 원인: `lib/prompt.ts` → `loadProtocolFile()`이 `process.cwd()/_context/` 에서 파일을 찾지만,
+  프로토콜 파일이 `sketch-to-image/_context/` 로 이동되어 경로 불일치 발생
+- 수정: `sketch-to-image/_context/` 를 우선 탐색, 없으면 `_context/` 로 폴백하는 로직으로 변경
 
-2. **포트 인디케이터** (components/NodeCard.tsx)
-   - PortShape: 'none' | 'circle-solid' | 'circle-outline' | 'diamond-solid' | 'diamond-outline'
-   - 부모 단일: circle-solid(●검정), 부모 다중자식: diamond-solid(◆검정)
-   - 자식 단일: circle-outline(○흰+검정stroke), 자식 다중부모: diamond-outline(◇흰+stroke)
-   - props 변경: hasLeftPort/hasRightPort(boolean) → portLeft/portRight(PortShape)
+**이슈 2: EXPAND 버튼 조건 변경**
 
-3. **포트 타입 계산** (components/InfiniteCanvas.tsx)
-   - EdgeLayer를 transform layer 밖으로 이동, scale+offset 전달
-   - getPortRight: anyTargetIsMultiParent → diamond-solid, else circle-solid
-   - getPortLeft: inCount=1 → circle-outline, >1 → diamond-outline
-   - onNodePositionCommit: () → (id: string), 드래그 완료 시 autoPlaced:false 처리
+- 기존: `isSelected && artboardType === 'image'` → image 아트보드에만 EXPAND 표시
+- 변경: `isSelected && artboardType !== 'blank'` → blank(처음 생성 아트보드) 제외 모든 아이템에 표시
 
-4. **Auto Layout** (lib/autoLayout.ts — 신규)
-   - subtreeHeight(): 노드+서브트리 수직 공간 재귀 계산
-   - placeNewChild(): 새 자식 위치 + 충돌 autoPlaced 노드 pushdown map 반환
+---
 
-5. **타입 정의** (types/canvas.ts)
-   - CARD_W_PX=280, CARD_H_PX=198, COL_GAP_PX=40, ROW_GAP_PX=16 추가
-   - CanvasNode: autoPlaced?, parentId? 추가
-   - PortShape 타입 export
+### 어디까지 완료됐는가
 
-6. **데모 다중 부모** (app/page.tsx)
-   - demo-edge-3: planners(1)→image(3) 추가 → image가 다중 부모(diamond-outline)
+**수정 파일:**
+| 파일 | 변경 내용 |
+|------|-----------|
+| `project_canvas/lib/prompt.ts` | `loadProtocolFile`: 후보 경로 배열 탐색 (sketch-to-image/_context → _context 폴백) |
+| `project_canvas/components/NodeCard.tsx` | EXPAND 버튼 조건: `artboardType === 'image'` → `artboardType !== 'blank'` |
 
-## 어디까지 완료됐는지
+**exec-plan:** `active/fix-sti-error-and-expand-button-260423.md` — 코드 수정 완료, 브라우저 검증 대기
 
-- 모든 파일 수정 완료
-- TypeScript 빌드 clean (next build 통과)
-- 남은 것: 브라우저 UI 직접 검증
+---
 
-## 다음에 무엇을 해야 하는지
+### 다음에 무엇을 해야 하는가
 
-1. `npm run dev` → 브라우저 확인:
-   - 베지어 선 3개 표시 여부
-   - planners·plan 우측 diamond-solid(◆), image 좌측 diamond-outline(◇)
-   - 선택 시 연결 엣지 강조, 나머지 희미
-2. UI 검증 완료 후 exec-plan → completed/ 이동
+1. 개발 서버 재시작 후 SKETCH 노드 → Generate 클릭 → 500 오류 해소 확인
+2. blank 외 노드(SKETCH, IMAGE, 기타) 선택 시 EXPAND 버튼 표시 확인
+3. blank 노드 선택 시 EXPAND 버튼 미표시 확인
+4. 확인 완료 후 exec-plan → completed/ 이동
+
+---
+
+COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.

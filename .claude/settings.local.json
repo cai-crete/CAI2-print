@@ -34,7 +34,10 @@
       "Bash(curl -s http://localhost:3900)",
       "Read(//c/tmp/**)",
       "Bash(cp c:/Users/USER01/Downloads/CAI-2/docs/exec-plans/active/Frontend/artboard-system-redesign-v1.md c:/Users/USER01/Downloads/CAI-2/docs/exec-plans/completed/Frontend/artboard-system-redesign-v1.md)",
-      "Bash(rm \"c:/Users/USER01/Downloads/CAI-2/docs/exec-plans/active/Frontend/artboard-system-redesign-v1.md\")"
+      "Bash(rm \"c:/Users/USER01/Downloads/CAI-2/docs/exec-plans/active/Frontend/artboard-system-redesign-v1.md\")",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\USER01\\Downloads\\cai-harness-print\\project.10_print\\sources\\document_template",

@@ -2,59 +2,35 @@
 
 ## 방금 무엇을 했는지
 
-아트보드 시스템 리디자인 A/B/C 3가지 수정사항 기획 및 구현 완료.
+머지 충돌 해소 완료.
 
-### 기획 (shape + critique 스킬)
-- Discovery Interview → Design Brief 작성 및 확정
-- 핵심 인터랙션 원칙 확정: "아트보드 선택 + 탭 클릭 → 패널 없이 직접 액션"
+### 충돌 원인
+- `project_canvas/app/page.tsx`, `project_canvas/components/NodeCard.tsx` 두 파일에
+  아트보드 리디자인(HEAD) vs 이전 커밋(090a320) 간 충돌 마커 잔존
 
-### 구현 내용
+### 해소 방법
+- `git checkout --ours` 로 HEAD(아트보드 리디자인 A/B/C) 버전 전체 채택
+- `git add` 로 staging 완료
+- `npx tsc --noEmit` → 오류 0건 확인
 
-**A. '+' 버튼 → 빈 아트보드(blank)**
-- `handleCreateEmptySketch` → `handleAddArtboard` 리네임
-- 생성되는 노드: `artboardType: 'blank'`, `type: 'sketch'` (placeholder)
-- 제목: `ARTBOARD #N`
-- NodeCard: 점선 테두리, `—` 플레이스홀더, 유형 배지 없음
-
-**B. 아트보드 유형 라벨링 (artboardType)**
-- 새 타입 추가: `ArtboardType = 'blank' | 'sketch' | 'image' | 'thumbnail'`
-- 사이드바 필터링:
-  - blank/미선택 → SELECT TOOLS (7개 전체)
-  - sketch 선택 → SKETCH TOOLS (IMAGE, PLAN만)
-  - image 선택 → IMAGE TOOLS (ELEVATION, VIEWPOINT, DIAGRAM, PRINT만)
-  - thumbnail 선택 → PLANNERS 패널 자동 표시
-- NodeCard 유형 배지: 내부 하단 좌측, Bebas 0.625rem, #999999
-- blank 탭 클릭 시 해당 노드 타입에 맞는 artboardType 자동 배정
-
-**C. sketch 확장 뷰 → 무한 그리드**
-- sketch/blank artboardType → ExpandedView에서 A4 프레임 대신 무한 그리드 표시
-- `SketchInfiniteGrid` 컴포넌트: 팬(드래그), 휠 줌, 32px 도트 그리드
-- 드로잉 도구는 미구현 (추후 개발)
-- 닫으면 기존 `hasThumbnail: true` 로직 그대로 적용
-
-### 변경 파일
-- `types/canvas.ts` — ArtboardType, NODE_TO_ARTBOARD_TYPE, ARTBOARD_COMPATIBLE_NODES, NODES_THAT_EXPAND, ARTBOARD_LABEL
-- `app/page.tsx` — handleAddArtboard, handleNodeTabSelect, handleNodeCardSelect, selectedArtboardType 파생값
-- `components/LeftToolbar.tsx` — onAddSketch → onAddArtboard
-- `components/NodeCard.tsx` — artboardType prop, blank 스타일, 유형 배지
-- `components/RightSidebar.tsx` — selectedArtboardType 기반 3모드 렌더링
-- `components/ExpandedView.tsx` — SketchInfiniteGrid, onAddArtboard prop
-- `components/InfiniteCanvas.tsx` — artboardType을 NodeCard로 전달
+### 새로 추가된 파일 (staged, 미커밋)
+- `project_node/_context/brand-guidelines.md`
+- `project_node/_context/business-context.md`
+- `project_node/_context/design-style-guide-node.md`
 
 ## 어디까지 완료됐는지
 
-- A/B/C 전체 구현 완료
-- TypeScript 에러 0건 (tsc --noEmit 통과)
-- dev 서버 http://localhost:3900 정상 응답
-- exec-plan `artboard-system-redesign-v1.md` → completed/ 이동
+- 아트보드 시스템 리디자인 A/B/C 구현 완료 (이전 세션)
+- 머지 충돌 해소 완료 (이번 세션)
+- TypeScript 에러 0건
 
 ## 다음에 무엇을 해야 하는지
 
 - 사용자 UI 수동 검증 ('+' 버튼, 탭 필터링, sketch expand 그리드)
-- `/critique` 스킬로 UX 리뷰 수행 (사용자 요청 시)
+- `project_node/_context/` 신규 파일 3개 커밋 여부 사용자 확인
 - 추후 구현 예정:
   - sketch expand 실제 드로잉 도구
   - ELEVATION / VIEWPOINT / DIAGRAM 인-캔버스 실행 로직
   - PRINT generate → thumbnail 아트보드 자동 생성
-  - image 아트보드 생성 경로 (sketch generate 결과물)
+  - image 아트보드 생성 경로
 - `middle-button-panning.md` — 사용자 지시 시 구현 재개

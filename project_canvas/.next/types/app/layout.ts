@@ -1,4 +1,4 @@
-// File: C:\Users\USER01\Downloads\CAI-2\project_canvas\app\layout.tsx
+// File: C:\Users\USER01\Downloads\CAI\project_canvas\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

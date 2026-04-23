@@ -50,14 +50,6 @@ const IconDelete = () => (
   </svg>
 );
 
-const IconExpand = () => (
-  <svg viewBox="0 0 20 20" {...IC}>
-    <polyline points="12,3 17,3 17,8" />
-    <polyline points="3,12 3,17 8,17" />
-    <line x1="17" y1="3" x2="11" y2="9" />
-    <line x1="3" y1="17" x2="9" y2="11" />
-  </svg>
-);
 
 const CARD_W_REM = '17.5rem';
 const CARD_H_REM = '12.375rem';
@@ -93,6 +85,7 @@ export default function NodeCard({
   const def = NODE_DEFINITIONS[type];
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
+  const lastTapTimeRef = useRef<number>(0);
 
   const handleArtboardPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -107,7 +100,18 @@ export default function NodeCard({
     const dx = Math.abs(e.clientX - mouseDownPos.current.x);
     const dy = Math.abs(e.clientY - mouseDownPos.current.y);
     mouseDownPos.current = null;
-    if (dx < 6 && dy < 6) onSelect(id);
+    if (dx < 6 && dy < 6) {
+      const now = Date.now();
+      if (now - lastTapTimeRef.current < 300 && !isBlank) {
+        /* 더블클릭/더블탭 → expand (blank 제외) */
+        lastTapTimeRef.current = 0;
+        onExpand(id);
+      } else {
+        /* 단일 클릭/탭 → 선택 */
+        lastTapTimeRef.current = now;
+        onSelect(id);
+      }
+    }
   };
 
   const actionBtnBase: React.CSSProperties = {
@@ -214,42 +218,6 @@ export default function NodeCard({
           transition: 'box-shadow 150ms ease',
         }}
       >
-        {/* ── 확대 버튼 ──────────────────────────────────────────── */}
-        <button
-          title="전체 화면으로 열기"
-          onClick={e => { e.stopPropagation(); onExpand(id); }}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 10,
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: '1.5px solid var(--color-gray-200)',
-            background: 'var(--color-white)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-gray-500)',
-            transition: 'border-color 100ms ease, color 100ms ease, box-shadow 100ms ease',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.borderColor = 'var(--color-black)';
-            e.currentTarget.style.color = 'var(--color-black)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.borderColor = 'var(--color-gray-200)';
-            e.currentTarget.style.color = 'var(--color-gray-500)';
-            e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.12)';
-          }}
-        >
-          <span style={{ width: 14, height: 14, display: 'flex' }}><IconExpand /></span>
-        </button>
-
         {/* ── 아트보드 내용 ──────────────────────────────────────── */}
         {isBlank ? (
           /* blank: 빈 아트보드 플레이스홀더 */

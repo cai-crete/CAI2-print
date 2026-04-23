@@ -12,7 +12,7 @@ interface Props {
   hasSelectedArtboard: boolean;
   onNodeTabSelect: (type: NodeType) => void;
   onNavigateToExpand: (type: NodeType) => void;
-  onShowToast: (message: string) => void;
+  onShowToast: (message: string, type?: 'warning' | 'success') => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -27,7 +27,7 @@ interface NodePanelProps {
   type: NodeType;
   hasSelectedArtboard: boolean;
   onGenerate: () => void;
-  onShowToast: (message: string) => void;
+  onShowToast: (message: string, type?: 'warning' | 'success') => void;
 }
 
 function NodePanel({ type, hasSelectedArtboard, onGenerate, onShowToast }: NodePanelProps) {

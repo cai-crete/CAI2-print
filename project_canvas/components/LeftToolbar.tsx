@@ -159,7 +159,7 @@ export default function LeftToolbar({
     whiteSpace: 'nowrap',
     textAlign: 'left',
     transition: 'background-color 100ms ease',
-    borderRadius: 'var(--radius-pill)',
+    borderRadius: 'var(--radius-box)',
   };
 
   return (
@@ -239,11 +239,11 @@ export default function LeftToolbar({
         {isDropdownOpen && (
           <div style={{
             position: 'absolute',
-            bottom: 'calc(100% + 0.5rem)',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            top: '50%',
+            left: 'calc(100% + 0.5rem)',
+            transform: 'translateY(-50%)',
             background: 'var(--color-white)',
-            borderRadius: 'var(--radius-pill)',
+            borderRadius: 'var(--radius-box)',
             boxShadow: 'var(--shadow-float)',
             padding: '4px',
             display: 'flex',

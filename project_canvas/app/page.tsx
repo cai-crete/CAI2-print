@@ -71,8 +71,11 @@ const MAX_SCALE = 4;
 type ActiveTool = 'cursor' | 'handle';
 
 /* ── 토스트 상태 ──────────────────────────────────────────────── */
+type ToastType = 'warning' | 'success';
+
 interface ToastState {
   message: string;
+  type: ToastType;
   visible: boolean;
   fadingOut: boolean;
 }
@@ -115,20 +118,20 @@ export default function CanvasPage() {
     : null;
 
   /* ── 토스트 ──────────────────────────────────────────────────────── */
-  const [toast, setToast] = useState<ToastState>({ message: '', visible: false, fadingOut: false });
+  const [toast, setToast] = useState<ToastState>({ message: '', type: 'warning', visible: false, fadingOut: false });
   const toastTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastFadeRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = useCallback((message: string) => {
+  const showToast = useCallback((message: string, type: ToastType = 'warning') => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     if (toastFadeRef.current)  clearTimeout(toastFadeRef.current);
 
-    setToast({ message, visible: true, fadingOut: false });
+    setToast({ message, type, visible: true, fadingOut: false });
 
     toastFadeRef.current = setTimeout(() => {
       setToast(prev => ({ ...prev, fadingOut: true }));
       toastTimerRef.current = setTimeout(() => {
-        setToast({ message: '', visible: false, fadingOut: false });
+        setToast({ message: '', type: 'warning', visible: false, fadingOut: false });
       }, 200);
     }, 3000);
   }, []);
@@ -503,6 +506,21 @@ export default function CanvasPage() {
   );
 
   /* ── 토스트 UI ──────────────────────────────────────────────────── */
+  const ToastIconWarning = () => (
+    <svg viewBox="0 0 20 20" fill="none" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <path d="M10 2L1 18H19L10 2Z" stroke="#CC0000" strokeWidth="1.6" strokeLinejoin="round" />
+      <line x1="10" y1="8" x2="10" y2="12" stroke="#CC0000" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="10" cy="15" r="0.8" fill="#CC0000" />
+    </svg>
+  );
+
+  const ToastIconSuccess = () => (
+    <svg viewBox="0 0 20 20" fill="none" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <circle cx="10" cy="10" r="8" stroke="#1A8917" strokeWidth="1.6" />
+      <path d="M6 10L9 13L14 7" stroke="#1A8917" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
   const Toast = () => {
     if (!toast.visible) return null;
     return (
@@ -513,15 +531,18 @@ export default function CanvasPage() {
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1100,
-          background: 'var(--color-white)',
+          background: 'var(--color-black)',
           boxShadow: 'var(--shadow-float)',
-          borderRadius: 'var(--radius-pill)',
-          padding: '0.625rem 1.25rem',
+          borderRadius: 'var(--radius-box)',
+          padding: '0.625rem 1rem',
           fontFamily: 'var(--font-family-pretendard)',
           fontSize: '0.8125rem',
-          color: 'var(--color-gray-600)',
+          color: 'var(--color-white)',
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
           opacity: toast.fadingOut ? 0 : 1,
           transition: toast.fadingOut
             ? 'opacity 200ms ease'
@@ -529,6 +550,7 @@ export default function CanvasPage() {
           animation: toast.fadingOut ? 'none' : 'toastSlideUp 200ms ease',
         }}
       >
+        {toast.type === 'warning' ? <ToastIconWarning /> : <ToastIconSuccess />}
         {toast.message}
       </div>
     );

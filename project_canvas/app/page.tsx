@@ -39,10 +39,11 @@ function lsLoadItems(): CanvasNode[] {
     const raw: CanvasNode[] = JSON.parse(localStorage.getItem(LS_ITEMS) || '[]');
     return raw.map(n => ({
       ...n,
-      /* Phase 7: 기존 'image' artboardType → 'imageStatic' 마이그레이션 */
-      artboardType: (n.artboardType as string) === 'image'
-        ? 'imageStatic'
-        : (n.artboardType ?? 'sketch'),
+      /* 마이그레이션: 기존 imageStatic / imageEditable → image 통합 */
+      artboardType:
+        (n.artboardType as string) === 'imageStatic' || (n.artboardType as string) === 'imageEditable'
+          ? 'image'
+          : (n.artboardType ?? 'sketch'),
     }));
   }
   catch { return []; }
@@ -244,7 +245,7 @@ export default function CanvasPage() {
     setActiveSidebarNodeType(null);
   }, [nodes, offset, scale, pushHistory]);
 
-  /* ── 이미지 업로드 → imageStatic 아트보드 생성 ───────────────────── */
+  /* ── 이미지 업로드 → image 아트보드 생성 ──────────────────────────── */
   const handleUploadImage = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -261,7 +262,7 @@ export default function CanvasPage() {
         position: { x: cwx, y: cwy },
         instanceNumber: num,
         hasThumbnail: true,
-        artboardType: 'imageStatic',
+        artboardType: 'image',
         thumbnailData: dataUrl,
       };
       pushHistory([...currentNodes, newNode]);
@@ -271,15 +272,6 @@ export default function CanvasPage() {
     reader.readAsDataURL(file);
   }, [nodes, offset, scale, pushHistory]);
 
-  /* ── 연필 버튼: imageStatic → imageEditable 전환 ─────────────────── */
-  const handleConvertToEditable = useCallback((id: string) => {
-    const next = nodes.map(n =>
-      n.id === id && n.artboardType === 'imageStatic'
-        ? { ...n, artboardType: 'imageEditable' as ArtboardType }
-        : n
-    );
-    pushHistory(next);
-  }, [nodes, pushHistory]);
 
   /* ── expand에서 돌아올 때 항상 썸네일 생성 ──────────────────────── */
   const handleReturnFromExpand = useCallback(() => {
@@ -317,14 +309,11 @@ export default function CanvasPage() {
     if (selectedNode) {
       /* elevation / viewpoint / diagram: 아트보드 유형 검증 필요 */
       if (NODES_NAVIGATE_DISABLED.includes(type)) {
-        if (
-          selectedNode.artboardType !== 'imageStatic' &&
-          selectedNode.artboardType !== 'imageEditable'
-        ) {
+        if (selectedNode.artboardType !== 'image') {
           showToast('이미지를 선택해 주세요');
           return;
         }
-        /* imageStatic / imageEditable + elevation/viewpoint/diagram → 유형 배정만 */
+        /* image + elevation/viewpoint/diagram → 유형 배정만 */
         const targetArtboardType = NODE_TO_ARTBOARD_TYPE[type];
         if (targetArtboardType) {
           const next = nodes.map(n =>
@@ -604,7 +593,7 @@ export default function CanvasPage() {
             onNodeExpand={setExpandedNodeId}
             onNodeDuplicate={duplicateNode}
             onNodeDelete={deleteNode}
-            onNodeConvertToEditable={handleConvertToEditable}
+
           />
 
           <LeftToolbar

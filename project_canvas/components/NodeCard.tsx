@@ -15,7 +15,6 @@ interface Props {
   artboardType: ArtboardType;
   portLeft?: PortShape;
   portRight?: PortShape;
-  onConvertToEditable?: (id: string) => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -34,10 +33,12 @@ const IconDownload = () => (
   </svg>
 );
 
-const IconPencil = () => (
+const IconExpand = () => (
   <svg viewBox="0 0 20 20" {...IC}>
-    <path d="M3 17L7 16L16 7A1.41 1.41 0 0 0 14 5L5 14Z" />
-    <path d="M14 5L16 7" />
+    <path d="M3 3H8M3 3V8M3 3L8 8" />
+    <path d="M17 3H12M17 3V8M17 3L12 8" />
+    <path d="M3 17H8M3 17V12M3 17L8 12" />
+    <path d="M17 17H12M17 17V12M17 17L12 12" />
   </svg>
 );
 
@@ -79,7 +80,6 @@ export default function NodeCard({
   node, isSelected, onSelect, onExpand, onDuplicate, onDelete, onMouseDown, hasThumbnail,
   artboardType,
   portLeft = 'none', portRight = 'none',
-  onConvertToEditable,
 }: Props) {
   const { id, type } = node;
   const def = NODE_DEFINITIONS[type];
@@ -157,15 +157,15 @@ export default function NodeCard({
             pointerEvents: 'all',
           }}
         >
-          {artboardType === 'imageStatic' && onConvertToEditable && (
+          {artboardType === 'image' && (
             <button
-              title="스케치 편집 모드로 전환"
+              title="확대하여 스케치"
               style={actionBtnBase}
-              onClick={e => { e.stopPropagation(); onConvertToEditable(id); }}
+              onClick={e => { e.stopPropagation(); onExpand(id); }}
               onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
               onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
             >
-              <span style={{ width: 16, height: 16, display: 'flex' }}><IconPencil /></span>
+              <span style={{ width: 16, height: 16, display: 'flex' }}><IconExpand /></span>
             </button>
           )}
 
@@ -242,8 +242,8 @@ export default function NodeCard({
               —
             </span>
           </div>
-        ) : (artboardType === 'imageStatic' || artboardType === 'imageEditable') && node.thumbnailData ? (
-          /* imageStatic/imageEditable: 업로드된 실제 이미지 */
+        ) : artboardType === 'image' && node.thumbnailData ? (
+          /* image: 업로드된 실제 이미지 */
           <img
             src={node.thumbnailData}
             alt=""

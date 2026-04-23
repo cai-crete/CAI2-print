@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   NodeType, NODE_DEFINITIONS, NODE_ORDER, ArtboardType,
   ARTBOARD_COMPATIBLE_NODES, NODES_NAVIGATE_DISABLED, PANEL_CTA_MESSAGE,
+  DISABLED_TAB_MESSAGE,
 } from '@/types/canvas';
 
 interface Props {
@@ -88,13 +89,6 @@ function NodePanel({ type, hasSelectedArtboard, onGenerate, onShowToast }: NodeP
   );
 }
 
-/* ── 아트보드 유형별 헤더 레이블 ──────────────────────────────── */
-const ARTBOARD_TOOLS_LABEL: Record<'sketch' | 'imageStatic' | 'imageEditable', string> = {
-  sketch:        'SKETCH TOOLS',
-  imageStatic:   'IMAGE TOOLS',
-  imageEditable: 'IMAGE TOOLS',
-};
-
 export default function RightSidebar({
   activeSidebarNodeType, selectedArtboardType,
   hasSelectedArtboard,
@@ -121,57 +115,47 @@ export default function RightSidebar({
   const hoverOff = (e: React.MouseEvent<HTMLButtonElement>) =>
     (e.currentTarget.style.backgroundColor = 'transparent');
 
-  const tabBtn = (type: NodeType) => (
-    <div key={type} style={pill()}>
-      <button
-        onClick={() => onNodeTabSelect(type)}
-        style={{
-          width: '100%', height: 'var(--h-cta-lg)', display: 'flex',
-          alignItems: 'center', padding: '0 1rem', border: 'none',
-          background: 'transparent', cursor: 'pointer',
-          borderRadius: 'var(--radius-pill)', fontFamily: 'var(--font-family-bebas)',
-          fontSize: '1rem', letterSpacing: '0.04em', color: 'var(--color-black)',
-          textAlign: 'left', transition: 'background-color 150ms ease',
-        }}
-        onMouseEnter={hoverOn}
-        onMouseLeave={hoverOff}
-        onMouseDown={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-200)')}
-        onMouseUp={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
-      >
-        {NODE_DEFINITIONS[type].displayLabel}
-      </button>
-    </div>
-  );
+  /* ── 비활성 탭 판별 헬퍼 ────────────────────────────────────── */
+  const isTabDisabled = (type: NodeType): boolean => {
+    if (!selectedArtboardType) return false;
+    if (selectedArtboardType === 'blank') return NODES_NAVIGATE_DISABLED.includes(type);
+    const compatible = ARTBOARD_COMPATIBLE_NODES[selectedArtboardType];
+    return !compatible.includes(type);
+  };
 
-  /* ══════════════════════════════════════════════════════════════
-     SKETCH TOOLS / IMAGE TOOLS 모드
-     — sketch / imageStatic / imageEditable 아트보드 선택 상태
-  ══════════════════════════════════════════════════════════════ */
-  if (
-    selectedArtboardType === 'sketch' ||
-    selectedArtboardType === 'imageStatic' ||
-    selectedArtboardType === 'imageEditable'
-  ) {
-    const label = ARTBOARD_TOOLS_LABEL[selectedArtboardType];
-    const compatibleNodes = ARTBOARD_COMPATIBLE_NODES[selectedArtboardType];
+  const tabBtn = (type: NodeType) => {
+    const disabled = isTabDisabled(type);
     return (
-      <div style={area}>
-        {/* 헤더 */}
-        <div style={pill()}>
-          <div style={{
+      <div key={type} style={pill()}>
+        <button
+          onClick={() => {
+            if (disabled) {
+              const msg = DISABLED_TAB_MESSAGE[type];
+              if (msg) onShowToast(msg);
+              return;
+            }
+            onNodeTabSelect(type);
+          }}
+          style={{
             width: '100%', height: 'var(--h-cta-lg)', display: 'flex',
-            alignItems: 'center', padding: '0 1rem',
-          }}>
-            <span className="text-title" style={{ color: 'var(--color-black)', letterSpacing: '0.04em' }}>
-              {label}
-            </span>
-          </div>
-        </div>
-        {/* 호환 노드 탭 목록 */}
-        {compatibleNodes.map(tabBtn)}
+            alignItems: 'center', padding: '0 1rem', border: 'none',
+            background: 'transparent',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            borderRadius: 'var(--radius-pill)', fontFamily: 'var(--font-family-bebas)',
+            fontSize: '1rem', letterSpacing: '0.04em',
+            color: disabled ? 'var(--color-gray-300)' : 'var(--color-black)',
+            textAlign: 'left', transition: 'background-color 150ms ease',
+          }}
+          onMouseEnter={e => { if (!disabled) hoverOn(e); }}
+          onMouseLeave={e => { if (!disabled) hoverOff(e); }}
+          onMouseDown={e => { if (!disabled) e.currentTarget.style.backgroundColor = 'var(--color-gray-200)'; }}
+          onMouseUp={e => { if (!disabled) e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; }}
+        >
+          {NODE_DEFINITIONS[type].displayLabel}
+        </button>
       </div>
     );
-  }
+  };
 
   /* ══════════════════════════════════════════════════════════════
      PANEL 모드 — thumbnail 아트보드 선택 시 or 미선택 탭 클릭
@@ -250,7 +234,8 @@ export default function RightSidebar({
   }
 
   /* ══════════════════════════════════════════════════════════════
-     SELECT TOOLS 모드 — 아트보드 미선택 / blank 선택
+     SELECT TOOLS 모드 — 모든 아트보드 상태 (미선택 / blank / sketch / image / thumbnail)
+     7개 노드 탭 상시 노출, 비호환 노드는 비활성 스타일
   ══════════════════════════════════════════════════════════════ */
   return (
     <div className="no-scrollbar" style={area}>

@@ -25,7 +25,6 @@ interface Props {
   onNodeExpand: (id: string) => void;
   onNodeDuplicate: (id: string) => void;
   onNodeDelete: (id: string) => void;
-  onNodeConvertToEditable?: (id: string) => void;
 }
 
 const GRID_SIZE   = 40;
@@ -48,7 +47,7 @@ export default function InfiniteCanvas({
   onScaleChange, onOffsetChange,
   onNodePositionChange, onNodePositionCommit,
   onNodeSelect, onNodeDeselect, onNodesSelect, onNodeExpand,
-  onNodeDuplicate, onNodeDelete, onNodeConvertToEditable,
+  onNodeDuplicate, onNodeDelete,
 }: Props) {
   /* ── 포트 계산 ──────────────────────────────────────────────────── */
   const inCount  = (id: string) => edges.filter(e => e.targetId === id).length;
@@ -420,7 +419,6 @@ export default function InfiniteCanvas({
               artboardType={node.artboardType}
               portLeft={getPortLeft(node.id)}
               portRight={getPortRight(node.id)}
-              onConvertToEditable={onNodeConvertToEditable}
             />
           </div>
         ))}

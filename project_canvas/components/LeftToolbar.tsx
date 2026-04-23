@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
+
 type ActiveTool = 'cursor' | 'handle';
 
 interface Props {
@@ -14,6 +16,7 @@ interface Props {
   onZoomOut: () => void;
   onZoomReset: () => void;
   onAddArtboard: () => void;
+  onUploadImage?: (file: File) => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -58,13 +61,42 @@ const IconMinus = () => (
   </svg>
 );
 
+const IconImage = () => (
+  <svg viewBox="0 0 20 20" {...IC}>
+    <rect x="2" y="4" width="16" height="12" rx="2" />
+    <circle cx="7" cy="8" r="1.5" />
+    <path d="M2 14L6 10L9 13L13 9L18 14" />
+  </svg>
+);
+
 export default function LeftToolbar({
   activeTool, scale, canUndo, canRedo,
   onToolChange, onUndo, onRedo,
   onZoomIn, onZoomOut, onZoomReset,
-  onAddArtboard,
+  onAddArtboard, onUploadImage = () => {},
 }: Props) {
   const pct = Math.round(scale * 100);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef   = useRef<HTMLDivElement>(null);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isDropdownOpen]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onUploadImage(file);
+    e.target.value = '';
+    setIsDropdownOpen(false);
+  };
 
   const btnBase: React.CSSProperties = {
     display: 'flex',
@@ -110,6 +142,25 @@ export default function LeftToolbar({
       <span className="icon-frame">{icon}</span>
     </button>
   );
+
+  const dropdownItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    width: '100%',
+    padding: '0 1rem',
+    height: '2.75rem',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    fontFamily: 'var(--font-family-pretendard)',
+    fontSize: '0.8125rem',
+    color: 'var(--color-gray-600)',
+    whiteSpace: 'nowrap',
+    textAlign: 'left',
+    transition: 'background-color 100ms ease',
+    borderRadius: 'var(--radius-pill)',
+  };
 
   return (
     <div style={{
@@ -174,20 +225,73 @@ export default function LeftToolbar({
         {mkBtn(onZoomOut, <IconMinus />, '축소 (-)')}
       </div>
 
-      {/* ── 상단 CTA: 새 아트보드 추가 ───────────────────────────── */}
-      <div style={{
-        position: 'absolute',
-        bottom: 'calc(100% + 0.75rem)',
-        left: '50%',
-        transform: 'translateX(-50%)',
-      }}>
+      {/* ── 상단 CTA: 새 아트보드 추가 / 이미지 업로드 ─────────────── */}
+      <div
+        ref={dropdownRef}
+        style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 0.75rem)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+        }}
+      >
+        {/* 드롭다운 메뉴 */}
+        {isDropdownOpen && (
+          <div style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 0.5rem)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-white)',
+            borderRadius: 'var(--radius-pill)',
+            boxShadow: 'var(--shadow-float)',
+            padding: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            zIndex: 1001,
+            minWidth: '9rem',
+          }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <button
+              style={dropdownItemStyle}
+              onClick={() => { onAddArtboard(); setIsDropdownOpen(false); }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={{ width: 16, height: 16, display: 'flex', color: 'var(--color-gray-400)' }}><IconPlus /></span>
+              새 아트보드
+            </button>
+            <button
+              style={dropdownItemStyle}
+              onClick={() => fileInputRef.current?.click()}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={{ width: 16, height: 16, display: 'flex', color: 'var(--color-gray-400)' }}><IconImage /></span>
+              이미지 업로드
+            </button>
+          </div>
+        )}
+
+        {/* 숨겨진 파일 입력 */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+
+        {/* + 버튼 */}
         <button
-          onClick={onAddArtboard}
-          title="새 아트보드 추가"
+          onClick={() => setIsDropdownOpen(v => !v)}
+          title="아트보드 추가"
           style={{
             width: '3.5rem',
             height: '3.5rem',
-            background: 'var(--color-black)',
+            background: isDropdownOpen ? 'var(--color-gray-700)' : 'var(--color-black)',
             color: 'var(--color-white)',
             border: 'none',
             borderRadius: 'var(--radius-pill)',
@@ -196,7 +300,7 @@ export default function LeftToolbar({
             justifyContent: 'center',
             boxShadow: 'var(--shadow-float)',
             cursor: 'pointer',
-            transition: 'opacity 120ms ease, transform 120ms ease',
+            transition: 'opacity 120ms ease, transform 120ms ease, background-color 120ms ease',
           }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.opacity = '0.8';

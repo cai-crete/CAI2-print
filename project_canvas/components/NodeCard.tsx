@@ -15,6 +15,7 @@ interface Props {
   artboardType: ArtboardType;
   portLeft?: PortShape;
   portRight?: PortShape;
+  onConvertToEditable?: (id: string) => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -30,6 +31,13 @@ const IconDownload = () => (
   <svg viewBox="0 0 20 20" {...IC}>
     <path d="M10 3V13M6 9L10 13L14 9" />
     <path d="M3 16V17A2 2 0 0 0 5 19H15A2 2 0 0 0 17 17V16" />
+  </svg>
+);
+
+const IconPencil = () => (
+  <svg viewBox="0 0 20 20" {...IC}>
+    <path d="M3 17L7 16L16 7A1.41 1.41 0 0 0 14 5L5 14Z" />
+    <path d="M14 5L16 7" />
   </svg>
 );
 
@@ -79,6 +87,7 @@ export default function NodeCard({
   node, isSelected, onSelect, onExpand, onDuplicate, onDelete, onMouseDown, hasThumbnail,
   artboardType,
   portLeft = 'none', portRight = 'none',
+  onConvertToEditable,
 }: Props) {
   const { id, type } = node;
   const def = NODE_DEFINITIONS[type];
@@ -144,6 +153,18 @@ export default function NodeCard({
             pointerEvents: 'all',
           }}
         >
+          {artboardType === 'imageStatic' && onConvertToEditable && (
+            <button
+              title="스케치 편집 모드로 전환"
+              style={actionBtnBase}
+              onClick={e => { e.stopPropagation(); onConvertToEditable(id); }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
+            >
+              <span style={{ width: 16, height: 16, display: 'flex' }}><IconPencil /></span>
+            </button>
+          )}
+
           <button
             title="복제"
             style={actionBtnBase}
@@ -253,6 +274,20 @@ export default function NodeCard({
               —
             </span>
           </div>
+        ) : (artboardType === 'imageStatic' || artboardType === 'imageEditable') && node.thumbnailData ? (
+          /* imageStatic/imageEditable: 업로드된 실제 이미지 */
+          <img
+            src={node.thumbnailData}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              pointerEvents: 'none',
+            }}
+          />
         ) : hasThumbnail ? (
           /* 썸네일 있음 */
           <div

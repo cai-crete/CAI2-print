@@ -1,13 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { NodeType, NODE_DEFINITIONS, NODE_ORDER, ArtboardType, ARTBOARD_COMPATIBLE_NODES } from '@/types/canvas';
+import {
+  NodeType, NODE_DEFINITIONS, NODE_ORDER, ArtboardType,
+  ARTBOARD_COMPATIBLE_NODES, NODES_NAVIGATE_DISABLED, PANEL_CTA_MESSAGE,
+} from '@/types/canvas';
 
 interface Props {
   activeSidebarNodeType: NodeType | null;
   selectedArtboardType: ArtboardType | null;
+  hasSelectedArtboard: boolean;
   onNodeTabSelect: (type: NodeType) => void;
   onNavigateToExpand: (type: NodeType) => void;
+  onShowToast: (message: string) => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -18,8 +23,42 @@ const IconNavigate    = () => (
   <svg viewBox="0 0 20 20" {...IC}><path d="M4 10H16M11 5L16 10L11 15" /></svg>
 );
 
-function NodePanel({ type, onGenerate }: { type: NodeType; onGenerate: () => void }) {
+interface NodePanelProps {
+  type: NodeType;
+  hasSelectedArtboard: boolean;
+  onGenerate: () => void;
+  onShowToast: (message: string) => void;
+}
+
+function NodePanel({ type, hasSelectedArtboard, onGenerate, onShowToast }: NodePanelProps) {
   const def = NODE_DEFINITIONS[type];
+
+  const handleGenerateClick = () => {
+    if (!hasSelectedArtboard) {
+      const msg = PANEL_CTA_MESSAGE[type];
+      if (msg) {
+        onShowToast(msg);
+        return;
+      }
+    }
+    onGenerate();
+  };
+
+  /* planners: GENERATE 버튼 없음 */
+  if (type === 'planners') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '1.5rem 1rem' }}>
+        <span className="text-title" style={{ fontSize: '0.75rem', color: 'var(--color-gray-300)', letterSpacing: '0.08em' }}>
+          {def.displayLabel}
+        </span>
+        <span style={{ display: 'block', width: 28, height: 1, background: 'var(--color-gray-200)', margin: '0.5rem 0' }} />
+        <span className="text-caption" style={{ color: 'var(--color-gray-300)', textAlign: 'center' }}>
+          API 연동 후 활성화
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '1.5rem 1rem 1rem', gap: '0.75rem' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
@@ -32,7 +71,7 @@ function NodePanel({ type, onGenerate }: { type: NodeType; onGenerate: () => voi
         </span>
       </div>
       <button
-        onClick={onGenerate}
+        onClick={handleGenerateClick}
         style={{
           width: '100%', height: 'var(--h-cta-lg)', border: 'none',
           borderRadius: 'var(--radius-pill)', background: 'var(--color-black)',
@@ -50,14 +89,16 @@ function NodePanel({ type, onGenerate }: { type: NodeType; onGenerate: () => voi
 }
 
 /* ── 아트보드 유형별 헤더 레이블 ──────────────────────────────── */
-const ARTBOARD_TOOLS_LABEL: Record<'sketch' | 'image', string> = {
-  sketch: 'SKETCH TOOLS',
-  image:  'IMAGE TOOLS',
+const ARTBOARD_TOOLS_LABEL: Record<'sketch' | 'imageStatic' | 'imageEditable', string> = {
+  sketch:        'SKETCH TOOLS',
+  imageStatic:   'IMAGE TOOLS',
+  imageEditable: 'IMAGE TOOLS',
 };
 
 export default function RightSidebar({
   activeSidebarNodeType, selectedArtboardType,
-  onNodeTabSelect, onNavigateToExpand,
+  hasSelectedArtboard,
+  onNodeTabSelect, onNavigateToExpand, onShowToast,
 }: Props) {
   const [accordionOpen, setAccordionOpen] = useState(true);
 
@@ -104,10 +145,13 @@ export default function RightSidebar({
 
   /* ══════════════════════════════════════════════════════════════
      SKETCH TOOLS / IMAGE TOOLS 모드
-     — sketch 또는 image 아트보드가 선택된 상태
-     — 호환 노드 탭만 표시, 클릭 시 직접 액션 (패널 없음)
+     — sketch / imageStatic / imageEditable 아트보드 선택 상태
   ══════════════════════════════════════════════════════════════ */
-  if (selectedArtboardType === 'sketch' || selectedArtboardType === 'image') {
+  if (
+    selectedArtboardType === 'sketch' ||
+    selectedArtboardType === 'imageStatic' ||
+    selectedArtboardType === 'imageEditable'
+  ) {
     const label = ARTBOARD_TOOLS_LABEL[selectedArtboardType];
     const compatibleNodes = ARTBOARD_COMPATIBLE_NODES[selectedArtboardType];
     return (
@@ -133,22 +177,34 @@ export default function RightSidebar({
      PANEL 모드 — thumbnail 아트보드 선택 시 or 미선택 탭 클릭
   ══════════════════════════════════════════════════════════════ */
   if (isPanelMode) {
+    const isNavDisabled = NODES_NAVIGATE_DISABLED.includes(activeSidebarNodeType!);
     return (
       <div style={{ ...area, overflowY: 'hidden' }}>
         {/* 헤더 행: [→ pill] + [노드탭 pill] */}
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch', flexShrink: 0 }}>
           <div style={{ ...pill(), width: 'var(--h-cta-lg)', height: 'var(--h-cta-lg)' }}>
             <button
-              onClick={() => onNavigateToExpand(activeSidebarNodeType!)}
-              title="expand로 이동"
+              onClick={() => { if (!isNavDisabled) onNavigateToExpand(activeSidebarNodeType!); }}
+              title={isNavDisabled ? '이미지를 선택해 주세요' : 'expand로 이동'}
+              disabled={isNavDisabled}
               style={{
                 width: '100%', height: '100%', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', border: 'none', background: 'transparent',
-                cursor: 'pointer', borderRadius: 'var(--radius-pill)',
-                color: 'var(--color-gray-500)', transition: 'background-color 100ms ease, color 100ms ease',
+                cursor: isNavDisabled ? 'not-allowed' : 'pointer',
+                borderRadius: 'var(--radius-pill)',
+                color: isNavDisabled ? 'var(--color-gray-300)' : 'var(--color-gray-500)',
+                transition: 'background-color 100ms ease, color 100ms ease',
               }}
-              onMouseEnter={e => { hoverOn(e); e.currentTarget.style.color = 'var(--color-black)'; }}
-              onMouseLeave={e => { hoverOff(e); e.currentTarget.style.color = 'var(--color-gray-500)'; }}
+              onMouseEnter={e => {
+                if (!isNavDisabled) {
+                  hoverOn(e);
+                  e.currentTarget.style.color = 'var(--color-black)';
+                }
+              }}
+              onMouseLeave={e => {
+                hoverOff(e);
+                e.currentTarget.style.color = isNavDisabled ? 'var(--color-gray-300)' : 'var(--color-gray-500)';
+              }}
             >
               <span style={{ width: 20, height: 20, display: 'flex' }}><IconNavigate /></span>
             </button>
@@ -184,7 +240,9 @@ export default function RightSidebar({
         }}>
           <NodePanel
             type={activeSidebarNodeType!}
+            hasSelectedArtboard={hasSelectedArtboard}
             onGenerate={() => onNavigateToExpand(activeSidebarNodeType!)}
+            onShowToast={onShowToast}
           />
         </div>
       </div>

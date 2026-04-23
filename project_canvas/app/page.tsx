@@ -5,12 +5,13 @@ import {
   CanvasNode, CanvasEdge, NodeType,
   ArtboardType, NODE_TO_ARTBOARD_TYPE, NODES_THAT_EXPAND,
   NODE_DEFINITIONS, NODES_NAVIGATE_DISABLED,
+  NODE_TARGET_ARTBOARD_TYPE,
 } from '@/types/canvas';
 import InfiniteCanvas from '@/components/InfiniteCanvas';
 import LeftToolbar    from '@/components/LeftToolbar';
 import RightSidebar   from '@/components/RightSidebar';
 import ExpandedView   from '@/components/ExpandedView';
-
+import { placeNewChild } from '@/lib/autoLayout';
 /* ── UUID 생성 (비보안 컨텍스트 폴백: HTTP 로컬 IP 접속 대응) ───── */
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -207,9 +208,25 @@ export default function CanvasPage() {
     const currentNodes = nodes;
     const existing = currentNodes.filter(n => n.type === type);
     const num = existing.length + 1;
-    const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
-    const cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
     const artboardType: ArtboardType = NODE_TO_ARTBOARD_TYPE[type] ?? 'sketch';
+
+    let cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
+    let cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
+    
+    let nextNodes = [...currentNodes];
+    let nextEdges = [...edges];
+
+    if (selectedNodeId) {
+      const { position, pushdowns } = placeNewChild(selectedNodeId, currentNodes, edges);
+      cwx = position.x;
+      cwy = position.y;
+      
+      nextNodes = currentNodes.map(n => {
+        const pd = pushdowns.get(n.id);
+        return pd ? { ...n, position: pd } : n;
+      });
+    }
+
     const newNode: CanvasNode = {
       id: generateId(),
       type,
@@ -218,12 +235,64 @@ export default function CanvasPage() {
       instanceNumber: num,
       hasThumbnail: false,
       artboardType,
+      parentId: selectedNodeId || undefined,
+      autoPlaced: !!selectedNodeId,
     };
-    const next = [...currentNodes, newNode];
-    pushHistory(next);
+    
+    nextNodes.push(newNode);
+
+    if (selectedNodeId) {
+      const newEdge: CanvasEdge = {
+        id: generateId(),
+        sourceId: selectedNodeId,
+        targetId: newNode.id,
+      };
+      nextEdges.push(newEdge);
+      setEdges(nextEdges);
+    }
+
+    pushHistory(nextNodes);
     setExpandedNodeId(newNode.id);
     setActiveSidebarNodeType(null);
-  }, [nodes, offset, scale, pushHistory]);
+  }, [nodes, edges, selectedNodeId, offset, scale, pushHistory]);
+
+  /* ── 확장 불가 노드의 자식 노드 생성 ────────────────────────────── */
+  const createChildNode = useCallback((parentId: string, type: NodeType, artboardType: ArtboardType) => {
+    const currentNodes = nodes;
+    const existing = currentNodes.filter(n => n.type === type);
+    const num = existing.length + 1;
+
+    const { position, pushdowns } = placeNewChild(parentId, currentNodes, edges);
+    
+    const nextNodes = currentNodes.map(n => {
+      const pd = pushdowns.get(n.id);
+      return pd ? { ...n, position: pd } : n;
+    });
+
+    const newNode: CanvasNode = {
+      id: generateId(),
+      type,
+      title: `${NODE_DEFINITIONS[type].caption} #${num}`,
+      position,
+      instanceNumber: num,
+      hasThumbnail: false,
+      artboardType,
+      parentId,
+      autoPlaced: true,
+    };
+    
+    nextNodes.push(newNode);
+
+    const newEdge: CanvasEdge = {
+      id: generateId(),
+      sourceId: parentId,
+      targetId: newNode.id,
+    };
+    
+    setEdges(prev => [...prev, newEdge]);
+    pushHistory(nextNodes);
+    setActiveSidebarNodeType(null);
+  }, [nodes, edges, pushHistory]);
 
   /* ── '+' 버튼: 빈 아트보드 생성 ─────────────────────────────────── */
   const handleAddArtboard = useCallback(() => {
@@ -277,9 +346,13 @@ export default function CanvasPage() {
   const handleReturnFromExpand = useCallback(() => {
     if (!expandedNodeId) { setExpandedNodeId(null); return; }
     setNodes(prev => {
-      const next = prev.map(n =>
-        n.id === expandedNodeId ? { ...n, hasThumbnail: true } : n
-      );
+      const next = prev.map(n => {
+        if (n.id === expandedNodeId) {
+          const targetArtboardType = NODE_TARGET_ARTBOARD_TYPE[n.type] || n.artboardType;
+          return { ...n, hasThumbnail: true, artboardType: targetArtboardType };
+        }
+        return n;
+      });
       setHistory(h => [...h.slice(0, historyIndex + 1), next]);
       setHistoryIndex(i => i + 1);
       return next;
@@ -313,15 +386,11 @@ export default function CanvasPage() {
           showToast('이미지를 선택해 주세요');
           return;
         }
-        /* image + elevation/viewpoint/diagram → 유형 배정만 */
+        /* image + elevation/viewpoint/diagram → 자식 노드 파생 */
         const targetArtboardType = NODE_TO_ARTBOARD_TYPE[type];
         if (targetArtboardType) {
-          const next = nodes.map(n =>
-            n.id === selectedNode.id ? { ...n, artboardType: targetArtboardType, type } : n
-          );
-          pushHistory(next);
+          createChildNode(selectedNode.id, type, targetArtboardType);
         }
-        setActiveSidebarNodeType(null);
         return;
       }
 
@@ -398,7 +467,6 @@ export default function CanvasPage() {
       title: `${NODE_DEFINITIONS[src.type].caption} #${num}`,
       instanceNumber: num,
       position: { x: src.position.x + 24, y: src.position.y + 24 },
-      hasThumbnail: false,
     }]);
   }, [nodes, pushHistory]);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { CanvasNode, NODE_DEFINITIONS, PortShape, ArtboardType, ARTBOARD_LABEL } from '@/types/canvas';
+import { CanvasNode, NODE_DEFINITIONS, PortShape, ArtboardType, ARTBOARD_LABEL, NODE_GENERATED_LABEL, NODE_TARGET_ARTBOARD_TYPE } from '@/types/canvas';
 
 interface Props {
   node: CanvasNode;
@@ -133,13 +133,9 @@ export default function NodeCard({
   const isBlank = artboardType === 'blank';
 
   /* 아트보드 테두리: blank = 점선, typed = 실선 */
-  const artboardBorder = isBlank
-    ? '1.5px dashed var(--color-gray-200)'
-    : 'none';
+  const artboardBorder = 'none';
 
-  const artboardBoxShadow = isBlank
-    ? (isSelected ? '0 0 0 2px var(--color-gray-300)' : 'var(--shadow-float)')
-    : (isSelected ? '0 0 0 2px var(--color-black), var(--shadow-float)' : 'var(--shadow-float)');
+  const artboardBoxShadow = isSelected ? '0 0 0 2px var(--color-black), var(--shadow-float)' : 'var(--shadow-float)';
 
   return (
     <div style={{ width: CARD_W_REM, userSelect: 'none', position: 'relative' }}>
@@ -220,16 +216,6 @@ export default function NodeCard({
               pointerEvents: 'none',
             }}
           >
-            <span
-              style={{
-                fontFamily: 'var(--font-family-bebas)',
-                fontSize: '1.5rem',
-                color: 'var(--color-gray-200)',
-                letterSpacing: '0.04em',
-              }}
-            >
-              —
-            </span>
           </div>
         ) : artboardType === 'image' && node.thumbnailData ? (
           /* image: 업로드된 실제 이미지 */
@@ -241,7 +227,7 @@ export default function NodeCard({
               inset: 0,
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
+              objectFit: 'contain',
               pointerEvents: 'none',
             }}
           />
@@ -342,7 +328,9 @@ export default function NodeCard({
                 letterSpacing: '0.08em',
               }}
             >
-              {ARTBOARD_LABEL[artboardType]}
+              {artboardType === NODE_TARGET_ARTBOARD_TYPE[node.type]
+                ? (NODE_GENERATED_LABEL[node.type] || ARTBOARD_LABEL[artboardType])
+                : ARTBOARD_LABEL[artboardType]}
             </span>
           </div>
         )}

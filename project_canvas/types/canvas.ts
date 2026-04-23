@@ -107,6 +107,30 @@ export const ARTBOARD_LABEL: Record<Exclude<ArtboardType, 'blank'>, string> = {
   thumbnail: 'THUMBNAIL',
 };
 
+/* 노드별 생성 완료 시 반환될 목표 ArtboardType */
+export const NODE_TARGET_ARTBOARD_TYPE: Partial<Record<NodeType, ArtboardType>> = {
+  plan:      'image',
+  image:     'image',
+  elevation: 'image',
+  viewpoint: 'image',
+  diagram:   'image',
+  print:     'thumbnail',
+  planners:  'thumbnail',
+  sketch:    'sketch',
+};
+
+/* 노드 타입별 최종 라벨 (artboardType이 대상 타입에 도달했을 때 표시할 라벨) */
+export const NODE_GENERATED_LABEL: Partial<Record<NodeType, string>> = {
+  plan:      'PLAN',
+  image:     'IMAGE',
+  elevation: 'ELEVATION',
+  viewpoint: 'VIEWPOINT',
+  diagram:   'DIAGRAM',
+  print:     'THUMBNAIL',
+  planners:  'THUMBNAIL',
+  sketch:    'SKETCH',
+};
+
 /* 비활성 탭 클릭 시 토스트 메시지 매핑 */
 export const DISABLED_TAB_MESSAGE: Partial<Record<NodeType, string>> = {
   elevation: '이미지를 선택해 주세요',

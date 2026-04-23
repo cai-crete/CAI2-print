@@ -157,17 +157,6 @@ export default function NodeCard({
             pointerEvents: 'all',
           }}
         >
-          {artboardType === 'image' && (
-            <button
-              title="확대하여 스케치"
-              style={actionBtnBase}
-              onClick={e => { e.stopPropagation(); onExpand(id); }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
-            >
-              <span style={{ width: 16, height: 16, display: 'flex' }}><IconExpand /></span>
-            </button>
-          )}
 
           <button
             title="복제"
@@ -301,6 +290,37 @@ export default function NodeCard({
               썸네일 없음
             </span>
           </div>
+        )}
+
+        {/* ── image 전용 expand 버튼 (아트보드 내부 우측 상단) ───── */}
+        {isSelected && artboardType === 'image' && (
+          <button
+            title="확대하여 스케치"
+            onClick={e => { e.stopPropagation(); onExpand(id); }}
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 32,
+              height: 32,
+              border: 'none',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--color-white)',
+              boxShadow: 'var(--shadow-float)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-gray-500)',
+              transition: 'background-color 100ms ease, color 100ms ease',
+              zIndex: 10,
+              pointerEvents: 'all',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
+          >
+            <span style={{ width: 16, height: 16, display: 'flex' }}><IconExpand /></span>
+          </button>
         )}
 
         {/* ── 아트보드 유형 배지 (blank 제외) ────────────────────── */}

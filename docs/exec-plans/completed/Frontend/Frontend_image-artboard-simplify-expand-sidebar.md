@@ -291,7 +291,7 @@
 - [x] Phase 4 — `page.tsx` 메인 페이지 수정 (handleConvertToEditable 삭제, lsLoadItems 마이그레이션 역전, handleUploadImage→image, handleNodeTabSelect 조건 통합, onNodeConvertToEditable prop 제거) ✅ 2026-04-23
 - [x] Phase 5 — `InfiniteCanvas.tsx` onNodeConvertToEditable prop 삭제 · `ExpandedView.tsx` imageEditable 참조 없음 확인 (수정 불필요) ✅ 2026-04-23
 - [x] Phase 6 — 빌드 검증 (TSC 에러 0건) · 브라우저 테스트 (7탭 표시, 비활성 탭 토스트 동작, ELEVATION 패널 정상) ✅ 2026-04-23
-- [ ] git commit & push — 모든 변경사항 커밋 및 원격 저장소 푸쉬
+- [x] git commit & push — `adffca7` 커밋 및 원격 저장소 푸쉬 완료 ✅ 2026-04-23
 
 ---
 

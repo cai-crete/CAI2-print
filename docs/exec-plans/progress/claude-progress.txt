@@ -1,50 +1,60 @@
-## 작업 일시: 2026-04-22
+## 작업 일시: 2026-04-23
 
 ## 방금 무엇을 했는지
 
-노드 연결선 시각화 v2 전면 재설계 완료. TypeScript 빌드 clean 확인.
+아트보드 시스템 리디자인 A/B/C 3가지 수정사항 기획 및 구현 완료.
 
-### 핵심 변경 사항
+### 기획 (shape + critique 스킬)
+- Discovery Interview → Design Brief 작성 및 확정
+- 핵심 인터랙션 원칙 확정: "아트보드 선택 + 탭 클릭 → 패널 없이 직접 액션"
 
-1. **SVG 렌더링 버그 수정** (components/EdgeLayer.tsx)
-   - 기존: transform layer 내부 → 상위 overflow:hidden에 클리핑 → 베지어 선 안 보임
-   - 수정: SVG를 viewport 레벨로 이동 (wrapperRef 직속), 월드→스크린 좌표 변환 추가
-   - strokeWidth 1.5 고정 (viewport 레벨이므로 scale 보정 불필요)
+### 구현 내용
 
-2. **포트 인디케이터** (components/NodeCard.tsx)
-   - PortShape: 'none' | 'circle-solid' | 'circle-outline' | 'diamond-solid' | 'diamond-outline'
-   - 부모 단일: circle-solid(●검정), 부모 다중자식: diamond-solid(◆검정)
-   - 자식 단일: circle-outline(○흰+검정stroke), 자식 다중부모: diamond-outline(◇흰+stroke)
-   - props 변경: hasLeftPort/hasRightPort(boolean) → portLeft/portRight(PortShape)
+**A. '+' 버튼 → 빈 아트보드(blank)**
+- `handleCreateEmptySketch` → `handleAddArtboard` 리네임
+- 생성되는 노드: `artboardType: 'blank'`, `type: 'sketch'` (placeholder)
+- 제목: `ARTBOARD #N`
+- NodeCard: 점선 테두리, `—` 플레이스홀더, 유형 배지 없음
 
-3. **포트 타입 계산** (components/InfiniteCanvas.tsx)
-   - EdgeLayer를 transform layer 밖으로 이동, scale+offset 전달
-   - getPortRight: anyTargetIsMultiParent → diamond-solid, else circle-solid
-   - getPortLeft: inCount=1 → circle-outline, >1 → diamond-outline
-   - onNodePositionCommit: () → (id: string), 드래그 완료 시 autoPlaced:false 처리
+**B. 아트보드 유형 라벨링 (artboardType)**
+- 새 타입 추가: `ArtboardType = 'blank' | 'sketch' | 'image' | 'thumbnail'`
+- 사이드바 필터링:
+  - blank/미선택 → SELECT TOOLS (7개 전체)
+  - sketch 선택 → SKETCH TOOLS (IMAGE, PLAN만)
+  - image 선택 → IMAGE TOOLS (ELEVATION, VIEWPOINT, DIAGRAM, PRINT만)
+  - thumbnail 선택 → PLANNERS 패널 자동 표시
+- NodeCard 유형 배지: 내부 하단 좌측, Bebas 0.625rem, #999999
+- blank 탭 클릭 시 해당 노드 타입에 맞는 artboardType 자동 배정
 
-4. **Auto Layout** (lib/autoLayout.ts — 신규)
-   - subtreeHeight(): 노드+서브트리 수직 공간 재귀 계산
-   - placeNewChild(): 새 자식 위치 + 충돌 autoPlaced 노드 pushdown map 반환
+**C. sketch 확장 뷰 → 무한 그리드**
+- sketch/blank artboardType → ExpandedView에서 A4 프레임 대신 무한 그리드 표시
+- `SketchInfiniteGrid` 컴포넌트: 팬(드래그), 휠 줌, 32px 도트 그리드
+- 드로잉 도구는 미구현 (추후 개발)
+- 닫으면 기존 `hasThumbnail: true` 로직 그대로 적용
 
-5. **타입 정의** (types/canvas.ts)
-   - CARD_W_PX=280, CARD_H_PX=198, COL_GAP_PX=40, ROW_GAP_PX=16 추가
-   - CanvasNode: autoPlaced?, parentId? 추가
-   - PortShape 타입 export
-
-6. **데모 다중 부모** (app/page.tsx)
-   - demo-edge-3: planners(1)→image(3) 추가 → image가 다중 부모(diamond-outline)
+### 변경 파일
+- `types/canvas.ts` — ArtboardType, NODE_TO_ARTBOARD_TYPE, ARTBOARD_COMPATIBLE_NODES, NODES_THAT_EXPAND, ARTBOARD_LABEL
+- `app/page.tsx` — handleAddArtboard, handleNodeTabSelect, handleNodeCardSelect, selectedArtboardType 파생값
+- `components/LeftToolbar.tsx` — onAddSketch → onAddArtboard
+- `components/NodeCard.tsx` — artboardType prop, blank 스타일, 유형 배지
+- `components/RightSidebar.tsx` — selectedArtboardType 기반 3모드 렌더링
+- `components/ExpandedView.tsx` — SketchInfiniteGrid, onAddArtboard prop
+- `components/InfiniteCanvas.tsx` — artboardType을 NodeCard로 전달
 
 ## 어디까지 완료됐는지
 
-- 모든 파일 수정 완료
-- TypeScript 빌드 clean (next build 통과)
-- 남은 것: 브라우저 UI 직접 검증
+- A/B/C 전체 구현 완료
+- TypeScript 에러 0건 (tsc --noEmit 통과)
+- dev 서버 http://localhost:3900 정상 응답
+- exec-plan `artboard-system-redesign-v1.md` → completed/ 이동
 
 ## 다음에 무엇을 해야 하는지
 
-1. `npm run dev` → 브라우저 확인:
-   - 베지어 선 3개 표시 여부
-   - planners·plan 우측 diamond-solid(◆), image 좌측 diamond-outline(◇)
-   - 선택 시 연결 엣지 강조, 나머지 희미
-2. UI 검증 완료 후 exec-plan → completed/ 이동
+- 사용자 UI 수동 검증 ('+' 버튼, 탭 필터링, sketch expand 그리드)
+- `/critique` 스킬로 UX 리뷰 수행 (사용자 요청 시)
+- 추후 구현 예정:
+  - sketch expand 실제 드로잉 도구
+  - ELEVATION / VIEWPOINT / DIAGRAM 인-캔버스 실행 로직
+  - PRINT generate → thumbnail 아트보드 자동 생성
+  - image 아트보드 생성 경로 (sketch generate 결과물)
+- `middle-button-panning.md` — 사용자 지시 시 구현 재개

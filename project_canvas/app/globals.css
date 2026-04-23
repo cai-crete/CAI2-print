@@ -111,7 +111,7 @@ html, body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* 엣지 진입 애니메이션 — pathLength="1" 기준 dashoffset 드로잉 */
+/* ── 엣지 입장 애니메이션 ────────────────────────────────────────── */
 @keyframes edge-draw {
   from { stroke-dashoffset: 1; }
   to   { stroke-dashoffset: 0; }

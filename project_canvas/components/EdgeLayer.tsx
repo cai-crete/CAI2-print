@@ -21,12 +21,8 @@ function targetWorld(node: CanvasNode) {
 }
 
 /* ── 베지어 경로 (스크린 좌표) ──────────────────────────────────── */
-function bezierPath(
-  sx: number, sy: number,
-  tx: number, ty: number,
-): string {
+function bezierPath(sx: number, sy: number, tx: number, ty: number): string {
   const isReverse = tx < sx - 20;
-
   if (!isReverse) {
     const t = Math.min(Math.max(Math.abs(tx - sx) * 0.45, 60), 160);
     return `M${sx},${sy} C${sx + t},${sy} ${tx - t},${ty} ${tx},${ty}`;
@@ -36,7 +32,6 @@ function bezierPath(
   return `M${sx},${sy} C${sx + 60},${sy + oy} ${tx - 60},${ty + oy} ${tx},${ty}`;
 }
 
-/* ── Props ──────────────────────────────────────────────────────── */
 interface Props {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
@@ -52,7 +47,6 @@ export default function EdgeLayer({
 }: Props) {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
   const hasSelection = selectedNodeId !== null;
-
   const highlightedEdgeIds = hasSelection
     ? new Set(
         edges
@@ -65,10 +59,8 @@ export default function EdgeLayer({
     <svg
       style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
+        top: 0, left: 0,
+        width: '100%', height: '100%',
         pointerEvents: 'none',
         overflow: 'visible',
       }}
@@ -78,7 +70,6 @@ export default function EdgeLayer({
         const tgt = nodeMap.get(edge.targetId);
         if (!src || !tgt) return null;
 
-        /* 월드 → 스크린 */
         const sp = toScreen(sourceWorld(src).x, sourceWorld(src).y, scale, offset);
         const tp = toScreen(targetWorld(tgt).x, targetWorld(tgt).y, scale, offset);
         const d  = bezierPath(sp.x, sp.y, tp.x, tp.y);
@@ -86,12 +77,8 @@ export default function EdgeLayer({
         const isNew       = newEdgeIds.has(edge.id);
         const isHighlight = highlightedEdgeIds.has(edge.id);
 
-        let stroke  = '#666666';
-        let opacity = 0.6;
-        if (hasSelection) {
-          stroke  = isHighlight ? '#000000' : '#666666';
-          opacity = isHighlight ? 1 : 0.2;
-        }
+        const stroke  = hasSelection ? (isHighlight ? '#000000' : '#666666') : '#666666';
+        const opacity = hasSelection ? (isHighlight ? 1 : 0.2) : 0.6;
 
         return (
           <path

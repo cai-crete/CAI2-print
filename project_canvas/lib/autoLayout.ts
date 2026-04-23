@@ -1,8 +1,8 @@
 import { CanvasNode, CanvasEdge, CARD_W_PX, CARD_H_PX, COL_GAP_PX, ROW_GAP_PX } from '@/types/canvas';
 
-/* ── 서브트리 총 높이 계산 ──────────────────────────────────────────
+/* ── 서브트리 총 높이 계산 ─────────────────────────────────────────
    노드 자신(198px) + 직계 자식들의 서브트리 합 + 형제 간 간격
-   ──────────────────────────────────────────────────────────────── */
+────────────────────────────────────────────────────────────────── */
 export function subtreeHeight(
   nodeId: string,
   nodes: CanvasNode[],
@@ -29,10 +29,10 @@ export function subtreeHeight(
 
 /* ── 신규 자식 노드 배치 위치 계산 ────────────────────────────────
    반환값: 새 노드의 position + 밀려야 할 기존 노드들의 위치 변경 map
-   ──────────────────────────────────────────────────────────────── */
+────────────────────────────────────────────────────────────────── */
 export interface LayoutResult {
   position: { x: number; y: number };
-  pushdowns: Map<string, { x: number; y: number }>; // id → 새 position
+  pushdowns: Map<string, { x: number; y: number }>;
 }
 
 export function placeNewChild(
@@ -45,7 +45,6 @@ export function placeNewChild(
 
   const childX = parent.position.x + CARD_W_PX + COL_GAP_PX;
 
-  /* 같은 부모의 기존 자식 목록 → Y 오름차순 */
   const siblings = edges
     .filter(e => e.sourceId === parentId)
     .map(e => nodes.find(n => n.id === e.targetId))
@@ -80,7 +79,7 @@ export function placeNewChild(
   return { position: { x: childX, y: childY }, pushdowns };
 }
 
-/* ── 재귀적 pushdown: 노드와 그 서브트리 전체를 delta만큼 아래로 ── */
+/* ── 재귀적 pushdown ────────────────────────────────────────────── */
 function applyPushdown(
   nodeId: string,
   delta: number,
@@ -90,7 +89,6 @@ function applyPushdown(
 ) {
   const node = nodes.find(n => n.id === nodeId);
   if (!node) return;
-
   const current = result.get(nodeId) ?? node.position;
   result.set(nodeId, { x: current.x, y: current.y + delta });
 

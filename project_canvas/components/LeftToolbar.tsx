@@ -13,7 +13,7 @@ interface Props {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
-  onAddSketch: () => void;
+  onAddArtboard: () => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -62,7 +62,7 @@ export default function LeftToolbar({
   activeTool, scale, canUndo, canRedo,
   onToolChange, onUndo, onRedo,
   onZoomIn, onZoomOut, onZoomReset,
-  onAddSketch,
+  onAddArtboard,
 }: Props) {
   const pct = Math.round(scale * 100);
 
@@ -134,10 +134,16 @@ export default function LeftToolbar({
         boxShadow: 'var(--shadow-float)',
       }}>
         {mkBtn(
-          () => onToolChange(activeTool === 'cursor' ? 'handle' : 'cursor'),
-          activeTool === 'cursor' ? <IconCursor /> : <IconHand />,
-          activeTool === 'cursor' ? '선택 (Cursor) — 클릭하여 이동 모드 전환' : '이동 (Hand) — 클릭하여 선택 모드 전환',
-          true,
+          () => onToolChange('cursor'),
+          <IconCursor />,
+          '선택 (V)',
+          activeTool === 'cursor',
+        )}
+        {mkBtn(
+          () => onToolChange('handle'),
+          <IconHand />,
+          '이동 (H)',
+          activeTool === 'handle',
         )}
 
         <div style={{ width: 'calc(100% - 12px)', height: 1, background: 'var(--color-gray-100)', margin: '2px 6px' }} />
@@ -150,7 +156,7 @@ export default function LeftToolbar({
         {mkBtn(onZoomIn,  <IconPlus />,  '확대 (+')}
         <button
           onClick={onZoomReset}
-          title="배율 초기화"
+          title="1클릭: 전체 보기  2클릭: 최근 아이템  3클릭: 원위치"
           style={{
             ...btnBase,
             fontFamily: 'var(--font-family-pretendard)',
@@ -176,8 +182,8 @@ export default function LeftToolbar({
         transform: 'translateX(-50%)',
       }}>
         <button
-          onClick={onAddSketch}
-          title="새 스케치 아트보드 추가"
+          onClick={onAddArtboard}
+          title="새 아트보드 추가"
           style={{
             width: '3.5rem',
             height: '3.5rem',

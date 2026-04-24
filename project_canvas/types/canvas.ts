@@ -33,6 +33,20 @@ export type ArtboardType = 'blank' | 'sketch' | 'image' | 'thumbnail';
 
 export type ActiveTool = 'cursor' | 'handle';
 
+export interface SketchPanelSettings {
+  prompt: string;
+  mode: string;
+  style: string | null;
+  aspectRatio: string | null;
+  resolution: string;
+}
+
+export interface PlanPanelSettings {
+  prompt: string;
+  floorType: string;
+  gridModule: number;
+}
+
 export interface CanvasNode {
   id: string;
   type: NodeType;
@@ -42,6 +56,11 @@ export interface CanvasNode {
   hasThumbnail: boolean;
   artboardType: ArtboardType;  // 아트보드 컨테이너 유형
   thumbnailData?: string;
+  sketchData?: string;          // 드로잉 base64 (sketch→image 원본)
+  generatedImageData?: string;  // 생성 결과 base64
+  sketchPanelSettings?: SketchPanelSettings; // 패널 설정 복원용
+  planPanelSettings?: PlanPanelSettings;     // 플랜 패널 설정 복원용
+  roomAnalysis?: string;                     // 생성 후 공간 분석 텍스트
   parentId?: string;    // 파생 출처 노드 id
   autoPlaced?: boolean; // Auto Layout 배치 노드 (수동 드래그 시 false로 전환)
 }
@@ -70,7 +89,7 @@ export const NODE_ORDER: NodeType[] = [
 export const ARTBOARD_COMPATIBLE_NODES: Record<Exclude<ArtboardType, 'blank'>, NodeType[]> = {
   sketch:    ['image', 'plan'],
   image:     ['elevation', 'viewpoint', 'diagram', 'print'],
-  thumbnail: ['planners'],
+  thumbnail: ['planners', 'print'],
 };
 
 /* 노드 → 아트보드 유형 매핑 (탭 클릭 시 blank 아트보드에 유형 배정) */
@@ -80,7 +99,7 @@ export const NODE_TO_ARTBOARD_TYPE: Partial<Record<NodeType, ArtboardType>> = {
   elevation: 'image',
   viewpoint: 'image',
   diagram:   'image',
-  print:     'image',
+  print:     'thumbnail',
   planners:  'thumbnail',
 };
 
@@ -92,6 +111,38 @@ export const ARTBOARD_LABEL: Record<Exclude<ArtboardType, 'blank'>, string> = {
   sketch:    'SKETCH',
   image:     'IMAGE',
   thumbnail: 'THUMBNAIL',
+};
+
+export const NODES_NAVIGATE_DISABLED: NodeType[] = ['elevation', 'viewpoint', 'diagram'];
+
+export const PANEL_CTA_MESSAGE: Partial<Record<NodeType, string>> = {
+  plan:      '스케치를 선택해 주세요',
+  image:     '스케치를 선택해 주세요',
+  elevation: '이미지를 선택해 주세요',
+  viewpoint: '이미지를 선택해 주세요',
+  diagram:   '이미지를 선택해 주세요',
+};
+
+export const NODE_TARGET_ARTBOARD_TYPE: Partial<Record<NodeType, ArtboardType>> = {
+  plan: 'image', image: 'image', elevation: 'image',
+  viewpoint: 'image', diagram: 'image', print: 'thumbnail',
+  planners: 'thumbnail', sketch: 'sketch',
+};
+
+export const NODE_GENERATED_LABEL: Partial<Record<NodeType, string>> = {
+  plan: 'PLAN', image: 'IMAGE', elevation: 'ELEVATION',
+  viewpoint: 'VIEWPOINT', diagram: 'DIAGRAM',
+  print: 'THUMBNAIL', planners: 'THUMBNAIL', sketch: 'SKETCH',
+};
+
+export const DISABLED_TAB_MESSAGE: Partial<Record<NodeType, string>> = {
+  elevation: '이미지를 선택해 주세요',
+  viewpoint: '이미지를 선택해 주세요',
+  diagram:   '이미지를 선택해 주세요',
+  plan:      '스케치를 선택해 주세요',
+  image:     '스케치를 선택해 주세요',
+  planners:  '아트보드를 선택해 주세요',
+  print:     '아트보드를 선택해 주세요',
 };
 
 /* 캔버스 좌표(world) → 화면 좌표(screen) */

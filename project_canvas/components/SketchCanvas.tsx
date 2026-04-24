@@ -27,9 +27,15 @@ interface TextItem {
   text: string;
 }
 
+interface ImageTransform {
+  x: number; y: number; width: number; height: number; rotation: number;
+}
+type ImageTransformOp = 'move' | 'resize' | 'rotate';
+
 type HistoryEntry = {
   paths: Path[];
   uploadedImageData: string | null;
+  imageTransform: ImageTransform | null;
 };
 
 export interface SketchCanvasHandle {
@@ -37,7 +43,7 @@ export interface SketchCanvasHandle {
   exportThumbnail: () => string;
   uploadTrigger: () => void;
   clearAll: () => void;
-  loadImage: (base64: string) => void;
+  loadImage: (base64: string, removeBackground?: boolean) => void;
   undo: () => void;
   redo: () => void;
 }
@@ -58,6 +64,12 @@ interface Props {
 export const PEN_STROKE_WIDTHS    = [0.5, 1, 2, 4, 6];
 export const ERASER_STROKE_WIDTHS = [10, 15, 20, 25, 30];
 export const DOT_VISUAL_SIZES     = [2, 4, 6, 8, 10];
+
+/* ── Rotate cursor (SVG data URL, center hotspot 10 10) ─────────── */
+const ROTATE_CURSOR = (() => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M 10 2 A 8 8 0 1 1 2 10" fill="none" stroke="white" stroke-width="3.2" stroke-linecap="round"/><path d="M 0 8 L 2.5 12.5 L 5.5 8.5" fill="none" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M 10 2 A 8 8 0 1 1 2 10" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round"/><path d="M 0 8 L 2.5 12.5 L 5.5 8.5" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 10 10, crosshair`;
+})();
 
 /* ── White background removal ───────────────────────────────────── */
 function removeWhiteBackground(dataUrl: string, threshold = 220): Promise<string> {
@@ -118,6 +130,20 @@ function renderDrawingLayer(
   return off;
 }
 
+/* ── Hit test: point in rotated rect (world coords) ─────────────── */
+function isPointInRotatedRect(
+  px: number, py: number,
+  rx: number, ry: number, rw: number, rh: number,
+  rotDeg: number,
+): boolean {
+  const cx  = rx + rw / 2;
+  const cy  = ry + rh / 2;
+  const rad = -rotDeg * Math.PI / 180;
+  const lx  = (px - cx) * Math.cos(rad) - (py - cy) * Math.sin(rad);
+  const ly  = (px - cx) * Math.sin(rad) + (py - cy) * Math.cos(rad);
+  return Math.abs(lx) <= rw / 2 && Math.abs(ly) <= rh / 2;
+}
+
 /* ── SketchCanvas ───────────────────────────────────────────────── */
 const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas(
   {
@@ -129,9 +155,9 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   },
   ref
 ) {
-  const canvasRef       = useRef<HTMLCanvasElement>(null);
-  const containerRef    = useRef<HTMLDivElement>(null);
-  const fileInputRef    = useRef<HTMLInputElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Drawing state ─────────────────────────────────────────────── */
   const [paths,             setPaths]             = useState<Path[]>([]);
@@ -140,8 +166,32 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   const [editingTextId,     setEditingTextId]     = useState<string | null>(null);
   const [textDragRect,      setTextDragRect]      = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
+  /* ── Image transform state ─────────────────────────────────────── */
+  const [imageTransform,     setImageTransform]     = useState<ImageTransform | null>(null);
+  const [imageEditingActive, setImageEditingActive] = useState(false);
+  const [isRotatingActive,   setIsRotatingActive]   = useState(false);
+
+  /* ── Image transform refs ──────────────────────────────────────── */
+  const imageTransformRef   = useRef<ImageTransform | null>(null);
+  const isTransformingImage = useRef(false);
+  const imageTransformOp    = useRef<ImageTransformOp>('move');
+  const imageResizeAxis     = useRef({ dx: 0, dy: 0 });
+  const rotCenterRef        = useRef({ cx: 0, cy: 0 });
+  const imageTransformStart = useRef({ ptX: 0, ptY: 0, tx: 0, ty: 0, tw: 0, th: 0, tr: 0 });
+
+  /* ref와 state를 함께 갱신 (포인터 이벤트와 undo/redo에서 ref가 항상 최신값을 반영하도록) */
+  const applyImageTransform = useCallback((next: ImageTransform | null) => {
+    imageTransformRef.current = next;
+    setImageTransform(next);
+  }, []);
+
+  /* 도구 변경 시 이미지 편집 모드 해제 */
+  useEffect(() => {
+    if (activeTool !== 'cursor') setImageEditingActive(false);
+  }, [activeTool]);
+
   /* ── History ────────────────────────────────────────────────────── */
-  const undoStack = useRef<HistoryEntry[]>([{ paths: [], uploadedImageData: null }]);
+  const undoStack = useRef<HistoryEntry[]>([{ paths: [], uploadedImageData: null, imageTransform: null }]);
   const redoStack = useRef<HistoryEntry[]>([]);
 
   const notifyHistory = useCallback(() => {
@@ -150,7 +200,11 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   }, [onUndoAvailable, onRedoAvailable]);
 
   const pushSnapshot = useCallback((nextPaths: Path[], nextImage: string | null) => {
-    undoStack.current.push({ paths: nextPaths, uploadedImageData: nextImage });
+    undoStack.current.push({
+      paths: nextPaths,
+      uploadedImageData: nextImage,
+      imageTransform: imageTransformRef.current,
+    });
     redoStack.current = [];
     notifyHistory();
   }, [notifyHistory]);
@@ -162,6 +216,8 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     const prev = undoStack.current[undoStack.current.length - 1];
     setPaths(prev.paths);
     setUploadedImageData(prev.uploadedImageData);
+    imageTransformRef.current = prev.imageTransform;
+    setImageTransform(prev.imageTransform);
     notifyHistory();
   }, [notifyHistory]);
 
@@ -171,36 +227,52 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     undoStack.current.push(next);
     setPaths(next.paths);
     setUploadedImageData(next.uploadedImageData);
+    imageTransformRef.current = next.imageTransform;
+    setImageTransform(next.imageTransform);
     notifyHistory();
   }, [notifyHistory]);
 
   /* ── Custom cursor ─────────────────────────────────────────────── */
-  const [cursorPos,   setCursorPos]   = useState({ x: -200, y: -200 });
-  const [showCursor,  setShowCursor]  = useState(false);
+  const [cursorPos,  setCursorPos]  = useState({ x: -200, y: -200 });
+  const [showCursor, setShowCursor] = useState(false);
 
   /* ── Drawing refs ──────────────────────────────────────────────── */
-  const isDrawing      = useRef(false);
-  const currentPath    = useRef<Path | null>(null);
-  const pathsRef       = useRef<Path[]>([]);
-  const uploadImgRef   = useRef<string | null>(null);
-  useEffect(() => { pathsRef.current      = paths; },             [paths]);
-  useEffect(() => { uploadImgRef.current  = uploadedImageData; }, [uploadedImageData]);
+  const isDrawing     = useRef(false);
+  const currentPath   = useRef<Path | null>(null);
+  const pathsRef      = useRef<Path[]>([]);
+  const uploadImgRef  = useRef<string | null>(null);
+  useEffect(() => { pathsRef.current     = paths;             }, [paths]);
+  useEffect(() => { uploadImgRef.current = uploadedImageData; }, [uploadedImageData]);
 
-  /* ── Uploaded image element (for zoom-aware canvas rendering) ───── */
+  /* ── Uploaded image element ─────────────────────────────────────── */
   const uploadedImgElRef = useRef<HTMLImageElement | null>(null);
-  const [imgVersion, setImgVersion] = useState(0);
   useEffect(() => {
     if (!uploadedImageData) {
       uploadedImgElRef.current = null;
-      setImgVersion(v => v + 1);
+      applyImageTransform(null);
       return;
     }
     const img = new Image();
-    img.onload = () => { uploadedImgElRef.current = img; setImgVersion(v => v + 1); };
-    /* BUG-1 fix: normalize src — raw base64 needs the data: prefix */
+    img.onload = () => {
+      uploadedImgElRef.current = img;
+
+      const canvasW = canvasRef.current?.width  || containerRef.current?.clientWidth  || 800;
+      const canvasH = canvasRef.current?.height || containerRef.current?.clientHeight || 600;
+      const imgScale = Math.min(canvasW / img.naturalWidth, canvasH / img.naturalHeight) * 0.8;
+      const w = img.naturalWidth  * imgScale;
+      const h = img.naturalHeight * imgScale;
+      const newTransform: ImageTransform = { x: -w / 2, y: -h / 2, width: w, height: h, rotation: 0 };
+      applyImageTransform(newTransform);
+      /* 초기 undo 스냅샷에 transform 반영 */
+      if (undoStack.current.length > 0) {
+        const last = undoStack.current[undoStack.current.length - 1];
+        undoStack.current[undoStack.current.length - 1] = { ...last, imageTransform: newTransform };
+      }
+    };
     img.src = uploadedImageData.startsWith('data:')
       ? uploadedImageData
       : `data:image/png;base64,${uploadedImageData}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedImageData]);
 
   /* ── Zoom / offset ref (stale closure 방지) ────────────────────── */
@@ -209,7 +281,7 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   useEffect(() => { internalZoomRef.current   = internalZoom;   }, [internalZoom]);
   useEffect(() => { internalOffsetRef.current = internalOffset; }, [internalOffset]);
 
-  /* ── 패닝 offset clamp 헬퍼 ─────────────────────────────────────── */
+  /* ── 패닝 offset clamp ─────────────────────────────────────────── */
   const clampOffset = useCallback((ox: number, oy: number, zs: number): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: ox, y: oy };
@@ -237,7 +309,7 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   const textDragStart  = useRef<Point | null>(null);
   const textWasDragged = useRef(false);
 
-  /* ── Canvas rendering ───────────────────────────────────────────── */
+  /* ── Canvas rendering (드로잉 스트로크만 — 이미지는 DOM 레이어) ─── */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -250,24 +322,8 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     const ox = internalOffset.x + canvas.width  / 2;
     const oy = internalOffset.y + canvas.height / 2;
 
-    /* Layer 1: 업로드 이미지 (eraser 영향 없음) */
-    const imgEl = uploadedImgElRef.current;
-    if (imgEl) {
-      const iW = imgEl.naturalWidth;
-      const iH = imgEl.naturalHeight;
-      const imgScale = Math.min(canvas.width / iW, canvas.height / iH);
-      const dw = iW * imgScale;
-      const dh = iH * imgScale;
-      ctx.save();
-      ctx.translate(ox, oy);
-      ctx.scale(zs, zs);
-      ctx.drawImage(imgEl, -dw / 2, -dh / 2, dw, dh);
-      ctx.restore();
-    }
-
-    /* Layer 2: drawing layer (eraser는 이 레이어만 지움) */
     ctx.drawImage(renderDrawingLayer(paths, canvas.width, canvas.height, ox, oy, zs), 0, 0);
-  }, [paths, internalZoom, internalOffset, imgVersion]);
+  }, [paths, internalZoom, internalOffset]);
 
   /* ── Canvas resize observer ────────────────────────────────────── */
   useEffect(() => {
@@ -299,12 +355,45 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     return { x: (sx - ox) / zs, y: (sy - oy) / zs };
   }, [internalZoom, internalOffset]);
 
+  /* ── Image resize handle pointer down ──────────────────────────── */
+  const handleResizeHandlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const dx = parseInt((e.currentTarget as HTMLElement).dataset.dx ?? '0');
+    const dy = parseInt((e.currentTarget as HTMLElement).dataset.dy ?? '0');
+    const ct = imageTransformRef.current;
+    if (!ct) return;
+    const pt = toWorld(e.clientX, e.clientY);
+    isTransformingImage.current  = true;
+    imageTransformOp.current     = 'resize';
+    imageResizeAxis.current      = { dx, dy };
+    imageTransformStart.current  = {
+      ptX: pt.x, ptY: pt.y,
+      tx: ct.x, ty: ct.y, tw: ct.width, th: ct.height, tr: ct.rotation,
+    };
+    canvasRef.current?.setPointerCapture(e.pointerId);
+  }, [toWorld]);
+
+  /* ── Image rotate handle pointer down ──────────────────────────── */
+  const handleRotateHandlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const ct = imageTransformRef.current;
+    if (!ct) return;
+    const pt = toWorld(e.clientX, e.clientY);
+    isTransformingImage.current  = true;
+    imageTransformOp.current     = 'rotate';
+    rotCenterRef.current         = { cx: ct.x + ct.width / 2, cy: ct.y + ct.height / 2 };
+    imageTransformStart.current  = {
+      ptX: pt.x, ptY: pt.y,
+      tx: ct.x, ty: ct.y, tw: ct.width, th: ct.height, tr: ct.rotation,
+    };
+    setIsRotatingActive(true);
+    canvasRef.current?.setPointerCapture(e.pointerId);
+  }, [toWorld]);
+
   /* ── Pointer handlers ───────────────────────────────────────────── */
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    /* Palm rejection: pen이 활성 중이면 touch(palm) 무시 */
     if (e.pointerType === 'touch' && penActiveRef.current) return;
 
-    /* 가운데 버튼 패닝 */
     if (e.button === 1) {
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       isPanning.current     = true;
@@ -321,14 +410,12 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     } else if (e.pointerType === 'touch') {
       pointerPositions.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointerPositions.current.size >= 2) {
-        /* 두 손가락: 핀치 줌으로 전환 */
-        isPanning.current = false;
-        isDrawing.current = false;
+        isPanning.current   = false;
+        isDrawing.current   = false;
         currentPath.current = null;
         const pts = [...pointerPositions.current.values()];
         lastPinchDist.current = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       } else {
-        /* 한 손가락: 항상 패닝 */
         isPanning.current     = true;
         panStart.current      = { x: e.clientX, y: e.clientY };
         panOffsetSnap.current = { ...internalOffsetRef.current };
@@ -338,9 +425,27 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect  = canvas.getBoundingClientRect();
-    const sx    = e.clientX - rect.left;
-    const sy    = e.clientY - rect.top;
+    const rect = canvas.getBoundingClientRect();
+    const sx   = e.clientX - rect.left;
+    const sy   = e.clientY - rect.top;
+
+    /* cursor tool — 이미지 히트 테스트 → 이동 시작 */
+    if (activeTool === 'cursor') {
+      const ct = imageTransformRef.current;
+      const pt = toWorld(e.clientX, e.clientY);
+      if (ct && isPointInRotatedRect(pt.x, pt.y, ct.x, ct.y, ct.width, ct.height, ct.rotation)) {
+        setImageEditingActive(true);
+        isTransformingImage.current  = true;
+        imageTransformOp.current     = 'move';
+        imageTransformStart.current  = {
+          ptX: pt.x, ptY: pt.y,
+          tx: ct.x, ty: ct.y, tw: ct.width, th: ct.height, tr: ct.rotation,
+        };
+      } else {
+        setImageEditingActive(false);
+      }
+      return;
+    }
 
     if (activeTool === 'pan') {
       isPanning.current     = true;
@@ -356,15 +461,12 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
         return;
       }
       const zs = internalZoom / 100;
-      const ox = internalOffsetRef.current.x + canvas.width / 2;
+      const ox = internalOffsetRef.current.x + canvas.width  / 2;
       const oy = internalOffsetRef.current.y + canvas.height / 2;
       const wx = (sx - ox) / zs;
       const wy = (sy - oy) / zs;
       const hit = textItems.find(t => wx >= t.x && wx <= t.x + t.width && wy >= t.y && wy <= t.y + t.height);
-      if (hit) {
-        setEditingTextId(hit.id);
-        return;
-      }
+      if (hit) { setEditingTextId(hit.id); return; }
       textDragStart.current  = { x: sx, y: sy };
       textWasDragged.current = false;
       return;
@@ -373,25 +475,22 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     if (activeTool === 'pen' || activeTool === 'eraser') {
       isDrawing.current = true;
       const wp = toWorld(e.clientX, e.clientY);
-      const newPath: Path = {
+      currentPath.current = {
         tool: activeTool,
         points: [wp],
         strokeWidth: activeTool === 'pen' ? penStrokeWidth : eraserStrokeWidth,
         color: '#000000',
       };
-      currentPath.current = newPath;
     }
   }, [activeTool, editingTextId, textItems, internalZoom, toWorld, penStrokeWidth, eraserStrokeWidth]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    /* Palm rejection */
     if (e.pointerType === 'touch' && penActiveRef.current) return;
 
     if (e.pointerType === 'touch') {
       pointerPositions.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointerPositions.current.size >= 2) {
-        /* 핀치 줌 */
-        const pts = [...pointerPositions.current.values()];
+        const pts  = [...pointerPositions.current.values()];
         const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
         if (lastPinchDist.current > 0) {
           const ratio = dist / lastPinchDist.current;
@@ -401,7 +500,6 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
         lastPinchDist.current = dist;
         return;
       }
-      /* 단일 터치: 아래 isPanning 블록에서 처리 */
     }
 
     const canvas = canvasRef.current;
@@ -412,7 +510,46 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
 
     setCursorPos({ x: sx, y: sy });
 
-    /* 통합 패닝 (tool pan / middle button / 단일 터치) */
+    /* 이미지 transform 처리 */
+    if (isTransformingImage.current) {
+      const cur = imageTransformRef.current;
+      if (!cur) return;
+      const pt = toWorld(e.clientX, e.clientY);
+      const s  = imageTransformStart.current;
+      const op = imageTransformOp.current;
+
+      if (op === 'move') {
+        const next: ImageTransform = { ...cur, x: s.tx + (pt.x - s.ptX), y: s.ty + (pt.y - s.ptY) };
+        imageTransformRef.current = next;
+        setImageTransform(next);
+      } else if (op === 'resize') {
+        const { dx, dy } = imageResizeAxis.current;
+        const deltaX = dx !== 0 ? (pt.x - s.ptX) * dx : 0;
+        const deltaY = dy !== 0 ? (pt.y - s.ptY) * dy : 0;
+        const aspect = s.tw / s.th;
+        let newW = dx !== 0 ? Math.max(s.tw + deltaX, 20) : s.tw;
+        let newH = dy !== 0 ? Math.max(s.th + deltaY, 20) : s.th;
+        /* 코너: 기본 비율 유지, Shift로 자유 리사이즈 */
+        if (dx !== 0 && dy !== 0) {
+          newH = e.shiftKey ? Math.max(s.th + deltaY, 20) : newW / aspect;
+        }
+        const newX = dx === -1 ? s.tx + (s.tw - newW) : s.tx;
+        const newY = dy === -1 ? s.ty + (s.th - newH) : s.ty;
+        const next: ImageTransform = { ...cur, x: newX, y: newY, width: newW, height: newH };
+        imageTransformRef.current = next;
+        setImageTransform(next);
+      } else if (op === 'rotate') {
+        const { cx, cy } = rotCenterRef.current;
+        let angle = Math.atan2(pt.y - cy, pt.x - cx) * (180 / Math.PI) + 90;
+        if (e.shiftKey) angle = Math.round(angle / 15) * 15;
+        const next: ImageTransform = { ...cur, rotation: angle };
+        imageTransformRef.current = next;
+        setImageTransform(next);
+      }
+      return;
+    }
+
+    /* 통합 패닝 */
     if (isPanning.current) {
       const rawX = panOffsetSnap.current.x + (e.clientX - panStart.current.x);
       const rawY = panOffsetSnap.current.y + (e.clientY - panStart.current.y);
@@ -420,7 +557,6 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
       return;
     }
 
-    /* touch는 패닝만 — drawing 코드로 진입 안 함 */
     if (e.pointerType === 'touch') return;
 
     if (activeTool === 'text' && textDragStart.current) {
@@ -447,7 +583,6 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   }, [activeTool, toWorld, onInternalOffsetChange, onInternalZoomChange, clampOffset]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    /* 가운데 버튼 릴리즈 */
     if (e.button === 1) {
       isPanning.current = false;
       return;
@@ -459,8 +594,16 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
       pointerPositions.current.delete(e.pointerId);
       if (pointerPositions.current.size < 2) {
         lastPinchDist.current = 0;
-        isPanning.current = false;
+        isPanning.current     = false;
       }
+      return;
+    }
+
+    /* 이미지 transform 종료 */
+    if (isTransformingImage.current) {
+      if (imageTransformOp.current === 'rotate') setIsRotatingActive(false);
+      isTransformingImage.current = false;
+      pushSnapshot(pathsRef.current, uploadImgRef.current);
       return;
     }
 
@@ -476,9 +619,9 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     }
 
     if (activeTool === 'text' && textDragStart.current) {
-      const zs  = internalZoom / 100;
-      const ox  = internalOffset.x + canvas.width  / 2;
-      const oy  = internalOffset.y + canvas.height / 2;
+      const zs = internalZoom / 100;
+      const ox = internalOffset.x + canvas.width  / 2;
+      const oy = internalOffset.y + canvas.height / 2;
 
       let newItem: TextItem;
       if (textWasDragged.current && textDragRect) {
@@ -532,25 +675,22 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
       const nextZoom = Math.max(100, Math.min(400, prevZoom * delta));
       const nextZs   = nextZoom / 100;
 
-      const rect  = canvas.getBoundingClientRect();
-      const px    = e.clientX - rect.left;
-      const py    = e.clientY - rect.top;
+      const rect   = canvas.getBoundingClientRect();
+      const px     = e.clientX - rect.left;
+      const py     = e.clientY - rect.top;
       const prevOx = internalOffsetRef.current.x + canvas.width  / 2;
       const prevOy = internalOffsetRef.current.y + canvas.height / 2;
-      const wx    = (px - prevOx) / prevZs;
-      const wy    = (py - prevOy) / prevZs;
+      const wx     = (px - prevOx) / prevZs;
+      const wy     = (py - prevOy) / prevZs;
 
-      const rawX  = px - wx * nextZs - canvas.width  / 2;
-      const rawY  = py - wy * nextZs - canvas.height / 2;
+      const rawX = px - wx * nextZs - canvas.width  / 2;
+      const rawY = py - wy * nextZs - canvas.height / 2;
 
       onInternalZoomChange(Math.round(nextZoom));
       onInternalOffsetChange(clampOffset(rawX, rawY, nextZs));
     };
 
-    /* 가운데 버튼 auto-scroll 방지 */
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 1) e.preventDefault();
-    };
+    const onMouseDown = (e: MouseEvent) => { if (e.button === 1) e.preventDefault(); };
 
     container.addEventListener('wheel', onWheel, { passive: false });
     container.addEventListener('mousedown', onMouseDown);
@@ -560,7 +700,7 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     };
   }, [onInternalZoomChange, onInternalOffsetChange, clampOffset]);
 
-  /* ── exportThumbnail: 항상 100% zoom/offset={0,0}으로 export ────── */
+  /* ── exportThumbnail: 100% zoom/offset={0,0} ────────────────────── */
   const exportThumbnail = useCallback((): string => {
     const canvas = canvasRef.current;
     if (!canvas) return '';
@@ -579,16 +719,14 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     const expOy = canvas.height / 2;
 
     const imgEl = uploadedImgElRef.current;
-    if (imgEl) {
-      const iW = imgEl.naturalWidth;
-      const iH = imgEl.naturalHeight;
-      const imgScale = Math.min(canvas.width / iW, canvas.height / iH);
-      const dw = iW * imgScale;
-      const dh = iH * imgScale;
+    const ct    = imageTransformRef.current;
+    if (imgEl && ct) {
+      const cx = expOx + ct.x + ct.width  / 2;
+      const cy = expOy + ct.y + ct.height / 2;
       ctx.save();
-      ctx.translate(expOx, expOy);
-      ctx.scale(expZs, expZs);
-      ctx.drawImage(imgEl, -dw / 2, -dh / 2, dw, dh);
+      ctx.translate(cx, cy);
+      ctx.rotate(ct.rotation * Math.PI / 180);
+      ctx.drawImage(imgEl, -ct.width / 2, -ct.height / 2, ct.width, ct.height);
       ctx.restore();
     }
 
@@ -634,41 +772,31 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
     const expOx = internalOffset.x + canvas.width  / 2;
     const expOy = internalOffset.y + canvas.height / 2;
 
-    /* Layer 1: 업로드 이미지 */
     const imgEl = uploadedImgElRef.current;
-    if (imgEl) {
-      const iW = imgEl.naturalWidth;
-      const iH = imgEl.naturalHeight;
-      const imgScale = Math.min(canvas.width / iW, canvas.height / iH);
-      const dw = iW * imgScale;
-      const dh = iH * imgScale;
+    const ct    = imageTransformRef.current;
+    if (imgEl && ct) {
+      const cx = expOx + (ct.x + ct.width  / 2) * expZs;
+      const cy = expOy + (ct.y + ct.height / 2) * expZs;
       ctx.save();
-      ctx.translate(expOx, expOy);
-      ctx.scale(expZs, expZs);
-      ctx.drawImage(imgEl, -dw / 2, -dh / 2, dw, dh);
+      ctx.translate(cx, cy);
+      ctx.rotate(ct.rotation * Math.PI / 180);
+      ctx.drawImage(imgEl, -ct.width * expZs / 2, -ct.height * expZs / 2, ct.width * expZs, ct.height * expZs);
       ctx.restore();
     }
 
-    /* Layer 2: drawing layer (eraser isolation) */
     ctx.drawImage(
       renderDrawingLayer(pathsRef.current, canvas.width, canvas.height, expOx, expOy, expZs),
       0, 0,
     );
 
-    /* Layer 3: text items */
-    const zs = internalZoom / 100;
-    const ox = internalOffset.x + canvas.width  / 2;
-    const oy = internalOffset.y + canvas.height / 2;
     ctx.save();
-    ctx.translate(ox, oy);
-    ctx.scale(zs, zs);
+    ctx.translate(expOx, expOy);
+    ctx.scale(expZs, expZs);
     ctx.font         = '14px sans-serif';
     ctx.fillStyle    = '#000000';
     ctx.textBaseline = 'top';
     for (const item of textItems) {
-      if (item.text.trim()) {
-        ctx.fillText(item.text, item.x + 8, item.y + 8);
-      }
+      if (item.text.trim()) ctx.fillText(item.text, item.x + 8, item.y + 8);
     }
     ctx.restore();
 
@@ -679,9 +807,8 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   const handleUpload = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      const raw = ev.target?.result as string;
+      const raw    = ev.target?.result as string;
       const base64 = await removeWhiteBackground(raw);
-      /* push snapshot with NEW image so undo/redo includes it */
       pushSnapshot(pathsRef.current, base64);
       setUploadedImageData(base64);
     };
@@ -697,36 +824,45 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
       setPaths([]);
       setUploadedImageData(null);
       setTextItems([]);
-      undoStack.current = [{ paths: [], uploadedImageData: null }];
+      applyImageTransform(null);
+      setImageEditingActive(false);
+      undoStack.current = [{ paths: [], uploadedImageData: null, imageTransform: null }];
       redoStack.current = [];
       notifyHistory();
     },
-    loadImage: (base64: string) => {
+    loadImage: (base64: string, removeBackground = false) => {
       setPaths([]);
       setTextItems([]);
+      setImageEditingActive(false);
       const dataUrl = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
-      removeWhiteBackground(dataUrl).then(processed => {
-        setUploadedImageData(processed);
-        undoStack.current = [{ paths: [], uploadedImageData: processed }];
+      if (removeBackground) {
+        removeWhiteBackground(dataUrl).then(processed => {
+          setUploadedImageData(processed);
+          undoStack.current = [{ paths: [], uploadedImageData: processed, imageTransform: null }];
+          redoStack.current = [];
+          notifyHistory();
+        });
+      } else {
+        setUploadedImageData(dataUrl);
+        undoStack.current = [{ paths: [], uploadedImageData: dataUrl, imageTransform: null }];
         redoStack.current = [];
         notifyHistory();
-      });
+      }
     },
     undo: handleUndo,
     redo: handleRedo,
-  }), [exportAsBase64, exportThumbnail, notifyHistory, handleUndo, handleRedo]);
+  }), [exportAsBase64, exportThumbnail, notifyHistory, handleUndo, handleRedo, applyImageTransform]);
 
   /* ── Cursor style per tool ──────────────────────────────────────── */
   const canvasCursorStyle = (): string => {
     if (activeTool === 'pen' || activeTool === 'eraser') return 'none';
     if (activeTool === 'text') return 'text';
     if (activeTool === 'pan')  return 'grab';
+    if (isRotatingActive)      return ROTATE_CURSOR;
     return 'default';
   };
 
-  const dotDiameter = activeTool === 'pen'
-    ? penStrokeWidth * 2
-    : eraserStrokeWidth;
+  const dotDiameter = activeTool === 'pen' ? penStrokeWidth * 2 : eraserStrokeWidth;
   const zs = internalZoom / 100;
 
   const canvas = canvasRef.current;
@@ -734,6 +870,90 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
   const ch = canvas?.height ?? 0;
   const ox = internalOffset.x + cw / 2;
   const oy = internalOffset.y + ch / 2;
+
+  /* ── 핸들 렌더링 계산 ───────────────────────────────────────────── */
+  const renderImageHandles = () => {
+    if (!imageEditingActive || !imageTransform) return null;
+    const ct       = imageTransform;
+    const hPx      = 10;
+    const rotOffPx = 28;
+
+    const cx   = ct.x + ct.width  / 2;
+    const cy   = ct.y + ct.height / 2;
+    const rad  = (ct.rotation ?? 0) * Math.PI / 180;
+    const cosR = Math.cos(rad);
+    const sinR = Math.sin(rad);
+
+    const rp = (px: number, py: number) => ({
+      x: cx + (px - cx) * cosR - (py - cy) * sinR,
+      y: cy + (px - cx) * sinR + (py - cy) * cosR,
+    });
+    const sc = (wx: number, wy: number) => ({ sx: wx * zs + ox, sy: wy * zs + oy });
+
+    const handles = [
+      { dx: -1, dy: -1, cursor: 'nwse-resize', ...rp(ct.x,              ct.y) },
+      { dx:  1, dy: -1, cursor: 'nesw-resize', ...rp(ct.x + ct.width,   ct.y) },
+      { dx: -1, dy:  1, cursor: 'nesw-resize', ...rp(ct.x,              ct.y + ct.height) },
+      { dx:  1, dy:  1, cursor: 'nwse-resize', ...rp(ct.x + ct.width,   ct.y + ct.height) },
+      { dx:  0, dy: -1, cursor: 'ns-resize',   ...rp(ct.x + ct.width/2, ct.y) },
+      { dx:  0, dy:  1, cursor: 'ns-resize',   ...rp(ct.x + ct.width/2, ct.y + ct.height) },
+      { dx: -1, dy:  0, cursor: 'ew-resize',   ...rp(ct.x,              ct.y + ct.height/2) },
+      { dx:  1, dy:  0, cursor: 'ew-resize',   ...rp(ct.x + ct.width,   ct.y + ct.height/2) },
+    ];
+    const rotHp = rp(ct.x + ct.width / 2, ct.y - rotOffPx / zs);
+    const rsc   = sc(rotHp.x, rotHp.y);
+
+    return (
+      <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none', overflow: 'visible' }}>
+        {/* 점선 바운딩 박스 */}
+        <div style={{
+          position: 'absolute',
+          left: ct.x * zs + ox, top: ct.y * zs + oy,
+          width: ct.width * zs, height: ct.height * zs,
+          transform: `rotate(${ct.rotation}deg)`,
+          transformOrigin: 'center center',
+          border: '1.5px dashed #f97316',
+          pointerEvents: 'none',
+        }} />
+        {/* 8개 리사이즈 핸들 */}
+        {handles.map((h, i) => {
+          const s = sc(h.x, h.y);
+          return (
+            <div
+              key={`rh-${i}`}
+              data-dx={h.dx}
+              data-dy={h.dy}
+              onPointerDown={handleResizeHandlePointerDown}
+              style={{
+                position: 'absolute',
+                left: s.sx - hPx / 2, top: s.sy - hPx / 2,
+                width: hPx, height: hPx,
+                background: 'white',
+                border: '1.5px solid #f97316',
+                borderRadius: '999px',
+                pointerEvents: 'all',
+                cursor: h.cursor,
+              }}
+            />
+          );
+        })}
+        {/* 로테이트 핸들 */}
+        <div
+          onPointerDown={handleRotateHandlePointerDown}
+          style={{
+            position: 'absolute',
+            left: rsc.sx - hPx / 2, top: rsc.sy - hPx / 2,
+            width: hPx, height: hPx,
+            background: '#f97316',
+            border: '1.5px solid white',
+            borderRadius: '999px',
+            pointerEvents: 'all',
+            cursor: ROTATE_CURSOR,
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
     <div
@@ -744,6 +964,28 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
         <InfiniteGrid zoom={internalZoom} offset={internalOffset} />
       </div>
+
+      {/* z=2 업로드 이미지 DOM 레이어 (CSS rotate 지원) */}
+      {uploadedImageData && imageTransform && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, overflow: 'visible', pointerEvents: 'none' }}>
+          <img
+            src={uploadedImageData}
+            alt=""
+            draggable={false}
+            style={{
+              position: 'absolute',
+              left:   imageTransform.x * zs + ox,
+              top:    imageTransform.y * zs + oy,
+              width:  imageTransform.width  * zs,
+              height: imageTransform.height * zs,
+              transform:       `rotate(${imageTransform.rotation}deg)`,
+              transformOrigin: 'center center',
+              pointerEvents:   'none',
+              userSelect:      'none',
+            }}
+          />
+        </div>
+      )}
 
       {/* z=3 드로잉 캔버스 */}
       <canvas
@@ -762,11 +1004,14 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
         onMouseLeave={() => setShowCursor(false)}
       />
 
-      {/* z=4 Text items overlay */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
+      {/* z=4 이미지 transform 핸들 오버레이 */}
+      {renderImageHandles()}
+
+      {/* z=5 Text items overlay */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
         {textItems.map(item => {
-          const screenX = item.x * zs + ox;
-          const screenY = item.y * zs + oy;
+          const screenX  = item.x * zs + ox;
+          const screenY  = item.y * zs + oy;
           const isEditing = editingTextId === item.id;
           return (
             <div
@@ -828,7 +1073,7 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
         )}
       </div>
 
-      {/* z=5 Custom cursor overlay */}
+      {/* z=6 Custom cursor overlay */}
       {(activeTool === 'pen' || activeTool === 'eraser') && showCursor && (
         <div
           style={{
@@ -840,13 +1085,10 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
             height: dotDiameter,
             borderRadius: '9999px',
             pointerEvents: 'none',
-            zIndex: 5,
+            zIndex: 6,
             ...(activeTool === 'pen'
               ? { background: '#000000' }
-              : {
-                  background: 'rgba(255,255,255,0.8)',
-                  border: '1px solid #000000',
-                }
+              : { background: 'rgba(255,255,255,0.8)', border: '1px solid #000000' }
             ),
           }}
         />
@@ -865,7 +1107,6 @@ const SketchCanvas = forwardRef<SketchCanvasHandle, Props>(function SketchCanvas
         }}
       />
 
-      {/* Undo/Redo keyboard shortcut listener */}
       <UndoRedoListener onUndo={handleUndo} onRedo={handleRedo} />
     </div>
   );

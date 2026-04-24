@@ -1,0 +1,41 @@
+## 세션 16 — 2026-04-24
+
+### 방금 무엇을 했는지
+ui-data-persistence-fixes-260424.md 작업지시서 4개 항목 전체 구현 완료.
+
+### 완료된 작업
+
+1. **새로고침 시 캔버스 아이템 소실 방지 — localforage 도입** ✅
+   - `app/page.tsx`에서 기존 `localStorage` + base64 스트리핑 로직 제거
+   - `localforage` (IndexedDB 래퍼) 비동기 저장/로드로 교체
+   - `lfSaveItems(nodes)` / `lfLoadItems()` 비동기 함수로 대체
+   - mount effect: `lfLoadItems().then(saved => { ... isRestoredRef.current = true })` 패턴 적용
+   - 이제 thumbnailData / sketchData / generatedImageData 등 base64 데이터 완전 보존
+
+2. **PLAN 탭 클릭 시 ExpandedView 직접 이동** ✅
+   - `app/page.tsx`의 `DIRECT_EXPAND_NODES` 배열에 `'plan'` 추가
+   - `['planners', 'image', 'plan']` 으로 변경
+
+3. **흰색 배경 제거 로직 분리** ✅
+   - `components/SketchCanvas.tsx`의 `loadImage` 함수에서 `removeWhiteBackground` 호출 제거
+   - 원본 `dataUrl`을 그대로 `setUploadedImageData`에 주입
+   - `handleUpload`(직접 업로드)에는 기존대로 `removeWhiteBackground` 유지
+
+4. **이미지 아트보드 전체 꽉 차게** ✅
+   - `components/NodeCard.tsx`의 `<img>` 태그 2곳 `objectFit: 'contain'` → `objectFit: 'cover'` 일괄 변경
+
+5. **CLAUDE.md 수정** ✅
+   - progress 파일 생성 방식을 단일 파일 덮어쓰기 → 타임스탬프 신규 파일 생성으로 변경
+   - 파일명 형식: `YYMMDD-HHMMSS-progress.txt`
+
+### 어디까지 완료됐는지
+코드 수정 100% 완료. `npm run build` 성공 (오류 없음).
+브라우저 검증은 포트 3900에서 이미 실행 중인 개발 서버로 직접 확인 필요.
+
+### 다음에 무엇을 해야 하는지
+1. 브라우저에서 4가지 요구사항 검증:
+   - 아트보드 생성 → 스케치/이미지 생성 → 새로고침 후 데이터 유지 확인
+   - 아트보드 미선택 상태에서 PLAN 탭 클릭 → ExpandedView 직접 열림 확인
+   - ExpandedView에서 기존 이미지 로드 시 배경 투명화 없이 원본 유지 확인
+   - NodeCard에서 이미지가 아트보드 전체를 꽉 채우는지(cover) 확인
+2. exec-plan 파일을 completed/로 이동 (사용자 확인 후)

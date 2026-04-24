@@ -3,9 +3,11 @@
 - @AGENTS.md 파일을 읽으세요
 - 사용자의 모든 명령은 작업지시서 형태로 @docs/exec-plans/active/ 생성하세요
 - 체크리스트 항목이 모두 완료된 `docs/exec-plans/active/` 파일은 `docs/exec-plans/completed/`로 이동 후 `active/`에서 삭제하세요
-- 작업을 마치면 `docs/exec-plans/progress/` 폴더에 `claude-progress.txt`를 리비전하여 저장하세요
+- 작업을 마치면 `docs/exec-plans/progress/` 폴더에 새 파일로 진행 상황을 저장하세요
+  - 파일명 형식: `YYMMDD-HHMMSS-progress.txt` (예: `260424-153012-progress.txt`)
+  - 기존 파일을 덮어쓰지 말고 항상 새 파일로 생성하세요
   - 파일 내용: 방금 무엇을 했는지, 어디까지 완료됐는지, 다음에 무엇을 해야 하는지
-  - 새 세션 시작 시 해당 폴더의 가장 최근 `claude-progress.txt`를 읽어 이전 진행 상황을 파악하세요
+  - 새 세션 시작 시 해당 폴더에서 가장 최신 파일(파일명 기준 내림차순 정렬 후 첫 번째)을 읽어 이전 진행 상황을 파악하세요
 
 # 절대 하지 말아야 할 것들
 - 사용자 허락 없이 파일 삭제하지 마세요

@@ -1,0 +1,42 @@
+## 세션 18 — 2026-04-24
+
+### 방금 무엇을 했는지
+Plan 노드 업로드 이미지 리사이즈/로테이트 기능 구현 계획 수립.
+
+사용자가 업로드한 image_transform_logic.md (sketch-to-plan/page.tsx의 이미지 변형 로직 가이드)를 분석하고,
+현재 SketchCanvas.tsx 구조를 파악하여 작업지시서를 작성함.
+
+### 완료된 작업
+
+1. **코드베이스 분석** ✅
+   - SketchCanvas.tsx: 현재 업로드 이미지를 canvas ctx.drawImage로 렌더링 (리사이즈/로테이트 핸들 없음)
+   - sketch-to-plan/ExpandedView.tsx: SketchCanvas 사용, cursor tool 존재하지만 아무 기능 없음
+   - sketch-to-image/ExpandedView.tsx: 동일 SketchCanvas 사용 → 변경 사항 양쪽 다 적용됨
+   - types/canvas.ts: CanvasNode 타입 확인 — imageTransform은 별도 저장 필요 없음 (현재 세션 내 상태로만 관리)
+
+2. **작업지시서 생성** ✅
+   - 파일: docs/exec-plans/active/260424-image-transform-plan-expanded.md
+   - 총 10개 Step으로 구성된 상세 체크리스트
+
+### 어디까지 완료됐는지
+계획 수립 100%. 코드 구현 0%.
+
+### 다음에 무엇을 해야 하는지
+작업지시서에 따라 SketchCanvas.tsx 구현:
+
+**우선 순서:**
+1. Step 1-2: 타입 + State/Ref 추가
+2. Step 3: 이미지 로드 시 초기 ImageTransform 계산
+3. Step 4: canvas 렌더링에서 이미지 Layer 1 제거
+4. Step 5-A~E: Pointer 이벤트 핸들러 수정 (cursor hit-test, resize, rotate, move)
+5. Step 6: DOM <img> 레이어 추가 (z=2)
+6. Step 7: Transform 핸들 오버레이 JSX (z=4)
+7. Step 8: exportAsBase64 / exportThumbnail 수정
+8. Step 9: HistoryEntry undo/redo 연동
+9. Step 10: 빌드 + 브라우저 검증
+
+### 핵심 아키텍처 결정
+- Hybrid Rendering: canvas는 드로잉 스트로크만, 이미지는 DOM <img> (z=2)
+- cursor tool 클릭 시 이미지 hit-test → imageEditingActive 토글
+- resize/rotate 핸들이 canvas에 포인터 캡처 → handlePointerMove가 transform 처리
+- imageTransform은 월드 좌표 (zoom=1 기준), 화면 변환 시 *zs + offset 적용

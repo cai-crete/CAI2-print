@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 
 interface Props {
+  label?: string;
   onCancel: () => void;
 }
 
@@ -21,7 +22,7 @@ const IconX = () => (
   </svg>
 );
 
-export default function GeneratingToast({ onCancel }: Props) {
+export default function GeneratingToast({ label = 'IMAGE GENERATING', onCancel }: Props) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function GeneratingToast({ onCancel }: Props) {
           letterSpacing: '0.1em',
           color: 'var(--color-black)',
         }}>
-          IMAGE GENERATING
+          {label}
         </span>
 
         <span style={{

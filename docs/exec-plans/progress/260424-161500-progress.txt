@@ -1,0 +1,32 @@
+## 세션 18 — 2026-04-24 (3차)
+
+### 방금 무엇을 했는지
+회전 기능 발현 시 커서를 rotate 전용 SVG 커서로 변경.
+
+### 완료된 작업
+
+1. **ROTATE_CURSOR 상수 추가** ✅
+   - 모듈 레벨 IIFE로 SVG data URL 커서 생성
+   - 20x20 SVG: 270° 호(arc) + 하단 화살표머리
+   - 흰색 테두리(3.2px) + 검정 선(1.8px) → 배경 무관하게 가시성 확보
+   - 핫스팟: 10 10 (중앙), fallback: crosshair
+
+2. **isRotatingActive 상태 추가** ✅
+   - handleRotateHandlePointerDown → setIsRotatingActive(true)
+   - handlePointerUp (rotate 종료) → setIsRotatingActive(false)
+   - canvasCursorStyle()에서 isRotatingActive이면 ROTATE_CURSOR 반환
+   - → 드래그 중 React 재렌더 시에도 cursor가 유지됨
+
+3. **로테이트 핸들 cursor 교체** ✅
+   - cursor: 'crosshair' → cursor: ROTATE_CURSOR
+
+4. **빌드 검증** ✅ — TypeScript 오류 0개
+
+### 어디까지 완료됐는지
+코드 구현 100%, 빌드 성공.
+
+### 다음에 무엇을 해야 하는지
+브라우저(localhost:3900) 검증:
+- 로테이트 핸들 hover → rotate SVG 커서 표시 확인
+- 로테이트 핸들 드래그 → canvas 전체에서 rotate 커서 유지 확인
+- 드래그 해제 → cursor가 default로 복귀 확인

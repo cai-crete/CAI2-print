@@ -249,7 +249,7 @@ export default function NodeCard({
             style={{
               position: 'absolute', inset: 0,
               width: '100%', height: '100%',
-              objectFit: 'contain', pointerEvents: 'none',
+              objectFit: 'cover', pointerEvents: 'none',
             }}
           />
         ) : hasThumbnail ? (
@@ -261,7 +261,7 @@ export default function NodeCard({
               style={{
                 position: 'absolute', inset: 0,
                 width: '100%', height: '100%',
-                objectFit: 'contain', pointerEvents: 'none',
+                objectFit: 'cover', pointerEvents: 'none',
               }}
             />
           ) : (

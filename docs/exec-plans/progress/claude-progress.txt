@@ -1,41 +1,51 @@
-## Claude Progress Log — 2026-04-23 (세션 13)
+## 세션 15 — 2026-04-24
 
----
+### 방금 무엇을 했는지
+sketch-to-plan 이식 완료. cai-sketch-to-plan-v2 앱을 cai-canvas-v2에 이식했습니다.
+sketch-to-image 패턴을 그대로 따라 7개 파일 신규 생성 + 4개 파일 수정.
 
-### 방금 무엇을 했는가
+### 완료된 작업
 
-**이슈 1: sketch-to-image Generate 500 오류 수정**
-
-- 원인: `lib/prompt.ts` → `loadProtocolFile()`이 `process.cwd()/_context/` 에서 파일을 찾지만,
-  프로토콜 파일이 `sketch-to-image/_context/` 로 이동되어 경로 불일치 발생
-- 수정: `sketch-to-image/_context/` 를 우선 탐색, 없으면 `_context/` 로 폴백하는 로직으로 변경
-
-**이슈 2: EXPAND 버튼 조건 변경**
-
-- 기존: `isSelected && artboardType === 'image'` → image 아트보드에만 EXPAND 표시
-- 변경: `isSelected && artboardType !== 'blank'` → blank(처음 생성 아트보드) 제외 모든 아이템에 표시
-
----
-
-### 어디까지 완료됐는가
+**신규 파일 생성:**
+- `sketch-to-plan/_context/protocol-sketch-to-plan-v3.8.txt` ✅ (이전 세션)
+- `sketch-to-plan/_context/knowledge-architectural-standards.txt` ✅ (이전 세션)
+- `sketch-to-plan/_context/knowledge-template-a.txt` ✅ (이전 세션)
+- `sketch-to-plan/_context/knowledge-wp-grid-mapping.txt` ✅ (이전 세션)
+- `sketch-to-plan/ExpandedView.tsx` ✅
+  - 좌측 툴바: 업로드/cursor/pan/pen(StrokePanel)/eraser(StrokePanel)/text/undo/redo/zoom — STI와 동일
+  - 우측 패널: Prompt → Building Type(9종 dropdown) → Grid Module(slider 6단계) → Parameter Report → GENERATE(하단 고정)
+  - Generate: 즉시 캔버스 복귀 → 백그라운드 생성 → onGeneratePlanComplete 콜백
+  - 결과 노드 expand 시 node.roomAnalysis를 Parameter Report에 표시
+- `hooks/usePlanGeneration.ts` ✅
+  - POST /api/sketch-to-plan 호출
+  - 반환: { image: string | null, roomAnalysis: string }
+- `app/api/sketch-to-plan/route.ts` ✅
+  - 모델: gemini-3.1-pro-preview (분석) / gemini-3.1-flash-image-preview (이미지 생성)
+  - 폴백: gemini-2.5-pro-preview / gemini-2.5-flash-image
+  - 2단계 파이프라인: 공간 분석 → CAD 평면도 이미지 생성
+  - 반환: { generated_plan_image, room_analysis, analysis_spec }
+  - GEMINI_API_KEY 재사용 (기존 .env.local 키)
 
 **수정 파일:**
-| 파일 | 변경 내용 |
-|------|-----------|
-| `project_canvas/lib/prompt.ts` | `loadProtocolFile`: 후보 경로 배열 탐색 (sketch-to-image/_context → _context 폴백) |
-| `project_canvas/components/NodeCard.tsx` | EXPAND 버튼 조건: `artboardType === 'image'` → `artboardType !== 'blank'` |
+- `types/canvas.ts` ✅ — PlanPanelSettings 인터페이스, CanvasNode에 planPanelSettings/roomAnalysis 추가
+- `lib/prompt.ts` ✅ — sketch-to-plan/_context/ 경로를 후보 배열에 추가
+- `components/ExpandedView.tsx` ✅ — isSketchPlanMode 라우팅 + 새 props 추가
+- `app/page.tsx` ✅
+  - handleReturnFromExpand: isSketchPlan 예외 추가 (artboardType 자동 변환 방지)
+  - handleCollapseWithPlanSketch: 스케치 + planPanelSettings 저장
+  - handleGeneratePlanComplete: 새 plan 노드 생성 (artboardType:'sketch', roomAnalysis 포함) + 엣지 연결
 
-**exec-plan:** `active/fix-sti-error-and-expand-button-260423.md` — 코드 수정 완료, 브라우저 검증 대기
+**문서:**
+- `exec-plans/active/sketch-to-plan-port-260423.md` → completed/ 이동 ✅
+- `exec-plans/active/fix-sti-error-and-expand-button-260423.md` → completed/ 이동 ✅
 
----
+### 어디까지 완료됐는지
+sketch-to-plan 이식 코드 작업 100% 완료. 빌드/런타임 테스트 미수행.
 
-### 다음에 무엇을 해야 하는가
-
-1. 개발 서버 재시작 후 SKETCH 노드 → Generate 클릭 → 500 오류 해소 확인
-2. blank 외 노드(SKETCH, IMAGE, 기타) 선택 시 EXPAND 버튼 표시 확인
-3. blank 노드 선택 시 EXPAND 버튼 미표시 확인
-4. 확인 완료 후 exec-plan → completed/ 이동
-
----
-
-COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.
+### 다음에 무엇을 해야 하는지
+1. 개발 서버 실행 후 기능 동작 확인:
+   - 빈 아트보드 선택 → 우측 PLAN 탭 클릭 → ExpandedView 열림 확인
+   - 스케치 후 GENERATE 클릭 → 즉시 캔버스 복귀 확인
+   - 생성 완료 후 새 plan 노드 생성 확인 (엣지 포함)
+   - result 노드 expand → Parameter Report에 room_analysis 표시 확인
+2. API 오류 발생 시 모델명 확인 (gemini-3.1 계열 가용 여부)

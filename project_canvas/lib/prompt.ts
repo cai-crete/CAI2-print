@@ -9,6 +9,7 @@ export function buildSystemPrompt(principleProtocol: string, knowledgeDocs: stri
 export function loadProtocolFile(filename: string): string {
   const candidates = [
     join(process.cwd(), 'sketch-to-image', '_context', filename),
+    join(process.cwd(), 'sketch-to-plan', '_context', filename),
     join(process.cwd(), '_context', filename),
   ];
   for (const p of candidates) {

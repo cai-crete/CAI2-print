@@ -1,0 +1,27 @@
+## 세션 17 — 2026-04-24
+
+### 방금 무엇을 했는지
+Plan 생성 이미지 배경 제거 + Expand 시 Grid 항상 표시 기능 구현.
+
+### 완료된 작업
+
+1. **SketchCanvas.tsx — loadImage에 removeBackground 옵션 추가** ✅
+   - `SketchCanvasHandle.loadImage(base64, removeBackground?: boolean)` 시그니처 추가
+   - removeBackground=true 이면 기존 removeWhiteBackground 적용 (Promise 기반)
+   - removeBackground=false(기본값) 이면 원본 dataUrl 직접 주입 (이전 세션에서 작업한 내용 유지)
+
+2. **sketch-to-plan/ExpandedView.tsx — loadImage 호출 분리** ✅
+   - node.generatedImageData 있을 때: loadImage(generatedImageData, true) → 배경 제거 → Grid 투과
+   - node.sketchData만 있을 때: loadImage(sketchData, false) → 원본 유지
+
+3. **sketch-to-image/ExpandedView.tsx — 변경 없음** ✅
+   - removeBackground 기본값 false 적용되어 원본 유지 유지됨
+
+### 어디까지 완료됐는지
+코드 수정 100%, npm run build 성공.
+
+### 다음에 무엇을 해야 하는지
+브라우저(localhost:3900) 검증:
+- Plan 결과 노드를 Expand → 생성 이미지 배경이 제거되어 Grid가 투과되는지 확인
+- 일반 image 노드 Expand → 원본 이미지 그대로 유지되는지 확인
+- sketch 스케치 노드 Expand → 원본 스케치 유지 확인

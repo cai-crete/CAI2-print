@@ -1,0 +1,53 @@
+## 세션 18 — 2026-04-24 (2차)
+
+### 방금 무엇을 했는지
+SketchCanvas.tsx에 이미지 리사이즈 및 로테이트 기능 구현 완료.
+
+### 완료된 작업
+
+1. **SketchCanvas.tsx 전면 수정** ✅
+   - `ImageTransform` 인터페이스 추가 `{ x, y, width, height, rotation }`
+   - `HistoryEntry`에 `imageTransform` 필드 추가 → undo/redo 연동
+   - `imageTransform`, `imageEditingActive` state 추가
+   - `imageTransformRef`, 조작 refs(`isTransformingImage`, `imageTransformOp`, `imageResizeAxis`, `rotCenterRef`, `imageTransformStart`) 추가
+   - `applyImageTransform` 헬퍼: ref + state 동시 갱신 (stale closure 방지)
+   - 이미지 로드 useEffect: fit 기반 초기 transform 자동 계산 (canvasSize * 0.8)
+   - canvas 렌더링에서 이미지 Layer 1 제거 → DOM 레이어로 이관
+   - `isPointInRotatedRect` 헬퍼 추가 (회전된 이미지 히트 테스트)
+   - `handleResizeHandlePointerDown` / `handleRotateHandlePointerDown` 추가
+   - `handlePointerDown`: cursor tool → 이미지 히트 테스트 + move 시작
+   - `handlePointerMove`: move/resize/rotate 실시간 처리
+   - `handlePointerUp`: transform 종료 + undo 스냅샷 저장
+   - `exportThumbnail` / `exportAsBase64`: transform-aware 렌더링으로 교체
+   - `clearAll` / `loadImage`: imageTransform 초기화 추가
+   - JSX 레이어 재구성: z=2(img DOM) / z=3(canvas) / z=4(핸들) / z=5(text) / z=6(cursor)
+   - 8개 리사이즈 핸들 (코너: 비율 유지, Shift: 자유 리사이즈) + 로테이트 핸들 (Shift: 15° 스냅)
+
+2. **빌드 검증** ✅
+   - TypeScript 오류 0개
+   - `npm run build` 성공
+
+3. **작업지시서 완료 이동** ✅
+   - active/ → completed/
+
+### 어디까지 완료됐는지
+코드 구현 100%, 빌드 성공. 브라우저 검증 필요.
+
+### 다음에 무엇을 해야 하는지
+브라우저(localhost:3900) 검증:
+1. Plan 노드 expand → 이미지 업로드 ([+] 버튼)
+2. cursor 도구 선택 → 이미지 클릭 → 오렌지 점선 바운딩 박스 + 핸들 표시 확인
+3. 이미지 드래그 → 이동 확인
+4. 코너 핸들 드래그 → 비율 유지 리사이즈 확인 (Shift 키 → 자유 리사이즈)
+5. 엣지 핸들 드래그 → 단방향 리사이즈 확인
+6. 로테이트 핸들(오렌지 원) 드래그 → 회전 확인 (Shift → 15° 스냅)
+7. Ctrl+Z → transform undo 확인
+8. GENERATE → export 이미지에 transform 반영 확인
+9. Image 노드도 동일하게 동작 확인
+
+### 핵심 구현 결정
+- Hybrid Rendering: 이미지는 DOM <img>(z=2), 드로잉은 canvas(z=3), 핸들은 DOM(z=4)
+- applyImageTransform(): ref와 state를 동시 갱신해 포인터 이벤트-렌더 사이클 간 동기화
+- 이미지 초기 크기: canvas의 80% fit (가장자리 여백 확보)
+- 코너 핸들: 기본 비율 유지, Shift 키로 자유 리사이즈
+- 로테이트 각도: atan2 절대 각도 계산, Shift 키로 15° 스냅

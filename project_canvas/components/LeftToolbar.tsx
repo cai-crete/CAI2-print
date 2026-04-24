@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
+
 type ActiveTool = 'cursor' | 'handle';
 
 interface Props {
@@ -14,6 +16,7 @@ interface Props {
   onZoomOut: () => void;
   onZoomReset: () => void;
   onAddArtboard: () => void;
+  onUploadImage?: (file: File) => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -58,13 +61,42 @@ const IconMinus = () => (
   </svg>
 );
 
+const IconImage = () => (
+  <svg viewBox="0 0 20 20" {...IC}>
+    <rect x="2" y="4" width="16" height="12" rx="2" />
+    <circle cx="7" cy="8.5" r="1.5" />
+    <polyline points="2,14 6,10 9,13 12,10 18,15" />
+  </svg>
+);
+
 export default function LeftToolbar({
   activeTool, scale, canUndo, canRedo,
   onToolChange, onUndo, onRedo,
   onZoomIn, onZoomOut, onZoomReset,
-  onAddArtboard,
+  onAddArtboard, onUploadImage,
 }: Props) {
   const pct = Math.round(scale * 100);
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef  = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadImage) onUploadImage(file);
+    e.target.value = '';
+    setIsDropdownOpen(false);
+  };
 
   const btnBase: React.CSSProperties = {
     display: 'flex',
@@ -102,14 +134,31 @@ export default function LeftToolbar({
         backgroundColor: active ? 'var(--color-gray-100)' : 'transparent',
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
-      onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-100)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = active ? 'var(--color-gray-100)' : 'transparent'; }}
-      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-200)'; }}
-      onMouseUp={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-100)'; }}
+      onPointerEnter={e => { if (e.pointerType !== 'mouse') return; if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-100)'; }}
+      onPointerLeave={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.backgroundColor = active ? 'var(--color-gray-100)' : 'transparent'; }}
+      onPointerDown={e => { if (e.pointerType !== 'mouse') return; if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-200)'; }}
+      onPointerUp={e => { if (e.pointerType !== 'mouse') return; if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-100)'; }}
     >
       <span className="icon-frame">{icon}</span>
     </button>
   );
+
+  const dropdownItemStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.625rem 1rem',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontFamily: 'var(--font-family-pretendard)',
+    fontSize: '0.8125rem',
+    color: 'var(--color-gray-700)',
+    textAlign: 'left' as const,
+    transition: 'background-color 100ms ease',
+    borderRadius: '0.375rem',
+  };
 
   return (
     <div style={{
@@ -166,28 +215,31 @@ export default function LeftToolbar({
             height: '1.75rem',
             letterSpacing: 0,
           }}
-          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
-          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+          onPointerEnter={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; }}
+          onPointerLeave={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
           {pct}%
         </button>
         {mkBtn(onZoomOut, <IconMinus />, '축소 (-)')}
       </div>
 
-      {/* ── 상단 CTA: 새 아트보드 추가 ───────────────────────────── */}
-      <div style={{
-        position: 'absolute',
-        bottom: 'calc(100% + 0.75rem)',
-        left: '50%',
-        transform: 'translateX(-50%)',
-      }}>
+      {/* ── 상단 CTA: 새 아트보드 추가 (드롭다운) ───────────────────── */}
+      <div
+        ref={dropdownRef}
+        style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 0.75rem)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+        }}
+      >
         <button
-          onClick={onAddArtboard}
-          title="새 아트보드 추가"
+          onClick={() => setIsDropdownOpen(v => !v)}
+          title="추가"
           style={{
             width: '3.5rem',
             height: '3.5rem',
-            background: 'var(--color-black)',
+            background: isDropdownOpen ? 'var(--color-gray-700)' : 'var(--color-black)',
             color: 'var(--color-white)',
             border: 'none',
             borderRadius: 'var(--radius-pill)',
@@ -196,23 +248,68 @@ export default function LeftToolbar({
             justifyContent: 'center',
             boxShadow: 'var(--shadow-float)',
             cursor: 'pointer',
-            transition: 'opacity 120ms ease, transform 120ms ease',
+            transition: 'background-color 120ms ease, opacity 120ms ease, transform 120ms ease',
           }}
-          onMouseEnter={e => {
+          onPointerEnter={e => {
+            if (e.pointerType !== 'mouse') return;
             (e.currentTarget as HTMLButtonElement).style.opacity = '0.8';
             (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)';
           }}
-          onMouseLeave={e => {
+          onPointerLeave={e => {
+            if (e.pointerType !== 'mouse') return;
             (e.currentTarget as HTMLButtonElement).style.opacity = '1';
             (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
           }}
-          onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'; }}
-          onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
+          onPointerDown={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'; }}
+          onPointerUp={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
         >
           <span style={{ width: 24, height: 24, display: 'flex' }}>
             <IconPlus />
           </span>
         </button>
+
+        {/* 드롭다운 메뉴 */}
+        {isDropdownOpen && (
+          <div style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 0.5rem)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-white)',
+            borderRadius: 'var(--radius-box)',
+            boxShadow: 'var(--shadow-float)',
+            padding: '0.375rem',
+            minWidth: '9rem',
+            zIndex: 1001,
+          }}>
+            <button
+              style={dropdownItemStyle}
+              onClick={() => { onAddArtboard(); setIsDropdownOpen(false); }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={{ width: 16, height: 16, display: 'flex', flexShrink: 0 }}><IconPlus /></span>
+              새 아트보드
+            </button>
+            <button
+              style={dropdownItemStyle}
+              onClick={() => fileInputRef.current?.click()}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={{ width: 16, height: 16, display: 'flex', flexShrink: 0 }}><IconImage /></span>
+              이미지 업로드
+            </button>
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
       </div>
     </div>
   );

@@ -252,15 +252,19 @@ export default function InfiniteCanvas({
     }
     if (e.button !== 0) return;
 
-    /* touch: 카운트 증가 후 멀티터치면 팬 취소 */
+    /* touch: 배경 터치만 처리 — 노드에서 버블된 이벤트는 handleNodeMouseDown에서 처리 */
     if (e.pointerType === 'touch') {
+      const target = e.target as HTMLElement;
+      const isBackground = target === wrapperRef.current || target.dataset.canvasLayer === 'true';
+      if (!isBackground) return;
+
       activeTouchCount.current += 1;
       if (activeTouchCount.current >= 2) {
         isPanning.current = false;
         setIsDraggingPan(false);
         return;
       }
-      /* 1개 터치 — 모드 무관하게 팬 시작 */
+      /* 배경 단일 터치: 툴 무관하게 팬 (배경에서는 팬이 기본 동작) */
       isPanning.current = true;
       setIsDraggingPan(true);
       panStart.current       = { x: e.clientX, y: e.clientY };
@@ -331,6 +335,33 @@ export default function InfiniteCanvas({
   /* ── 노드 pointerdown 위임 ──────────────────────────────────────── */
   const handleNodeMouseDown = useCallback((id: string, e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    /* 터치: activeTool에 따라 분기 */
+    if (e.pointerType === 'touch') {
+      activeTouchCount.current += 1;
+      if (activeTouchCount.current >= 2) {
+        isPanning.current = false;
+        setIsDraggingPan(false);
+        pendingNodeId.current = null;
+        return;
+      }
+      if (activeTool === 'handle') {
+        /* handle 모드: 단일 터치 = 팬 */
+        isPanning.current = true;
+        setIsDraggingPan(true);
+        panStart.current       = { x: e.clientX, y: e.clientY };
+        offsetSnapshot.current = { ...offsetRef.current };
+      } else {
+        /* cursor 모드: 단일 터치 = 노드 선택/드래그 */
+        const node = nodesRef.current.find(n => n.id === id);
+        if (node) {
+          pendingNodeId.current    = id;
+          dragStartMouse.current   = { x: e.clientX, y: e.clientY };
+          dragStartNodePos.current = { ...node.position };
+          dragMoved.current        = false;
+        }
+      }
+      return;
+    }
     if (activeTool !== 'cursor') return;
     const node = nodesRef.current.find(n => n.id === id);
     if (!node) return;
@@ -394,8 +425,8 @@ export default function InfiniteCanvas({
           position: 'absolute',
           top: 0, left: 0,
           transformOrigin: '0 0',
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-          willChange: 'transform',
+          transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
+          willChange: (isDraggingPan || isMiddleButtonPanning) ? 'transform' : 'auto',
         }}
       >
         {nodes.map(node => (
@@ -403,8 +434,8 @@ export default function InfiniteCanvas({
             key={node.id}
             style={{
               position: 'absolute',
-              left: node.position.x,
-              top: node.position.y,
+              left: Math.round(node.position.x),
+              top: Math.round(node.position.y),
             }}
           >
             <NodeCard

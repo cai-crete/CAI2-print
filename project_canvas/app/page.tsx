@@ -4,14 +4,13 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   CanvasNode, CanvasEdge, NodeType,
   ArtboardType, NODE_TO_ARTBOARD_TYPE, NODES_THAT_EXPAND,
-  NODE_DEFINITIONS, NODES_NAVIGATE_DISABLED,
-  NODE_TARGET_ARTBOARD_TYPE,
+  NODE_DEFINITIONS,
 } from '@/types/canvas';
 import InfiniteCanvas from '@/components/InfiniteCanvas';
 import LeftToolbar    from '@/components/LeftToolbar';
 import RightSidebar   from '@/components/RightSidebar';
 import ExpandedView   from '@/components/ExpandedView';
-import { placeNewChild } from '@/lib/autoLayout';
+
 /* ── UUID 생성 (비보안 컨텍스트 폴백: HTTP 로컬 IP 접속 대응) ───── */
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -38,14 +37,7 @@ function lsSaveItems(nodes: CanvasNode[]) {
 function lsLoadItems(): CanvasNode[] {
   try {
     const raw: CanvasNode[] = JSON.parse(localStorage.getItem(LS_ITEMS) || '[]');
-    return raw.map(n => ({
-      ...n,
-      /* 마이그레이션: 기존 imageStatic / imageEditable → image 통합 */
-      artboardType:
-        (n.artboardType as string) === 'imageStatic' || (n.artboardType as string) === 'imageEditable'
-          ? 'image'
-          : (n.artboardType ?? 'sketch'),
-    }));
+    return raw.map(n => ({ ...n, artboardType: n.artboardType ?? 'sketch' }));
   }
   catch { return []; }
 }
@@ -70,17 +62,10 @@ const HEADER_H  = 56;   /* var(--header-h) = 3.5rem */
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 4;
 
+/* 아트보드 미선택 상태에서 탭 클릭 시 바로 expand 진입하는 노드 */
+const DIRECT_EXPAND_NODES: NodeType[] = ['planners', 'image'];
+
 type ActiveTool = 'cursor' | 'handle';
-
-/* ── 토스트 상태 ──────────────────────────────────────────────── */
-type ToastType = 'warning' | 'success';
-
-interface ToastState {
-  message: string;
-  type: ToastType;
-  visible: boolean;
-  fadingOut: boolean;
-}
 
 export default function CanvasPage() {
   /* ── viewport ──────────────────────────────────────────────────── */
@@ -118,25 +103,6 @@ export default function CanvasPage() {
   const selectedArtboardType: ArtboardType | null = selectedNodeId
     ? (nodes.find(n => n.id === selectedNodeId)?.artboardType ?? null)
     : null;
-
-  /* ── 토스트 ──────────────────────────────────────────────────────── */
-  const [toast, setToast] = useState<ToastState>({ message: '', type: 'warning', visible: false, fadingOut: false });
-  const toastTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toastFadeRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showToast = useCallback((message: string, type: ToastType = 'warning') => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    if (toastFadeRef.current)  clearTimeout(toastFadeRef.current);
-
-    setToast({ message, type, visible: true, fadingOut: false });
-
-    toastFadeRef.current = setTimeout(() => {
-      setToast(prev => ({ ...prev, fadingOut: true }));
-      toastTimerRef.current = setTimeout(() => {
-        setToast({ message: '', type: 'warning', visible: false, fadingOut: false });
-      }, 200);
-    }, 3000);
-  }, []);
 
   /* ── history helpers ─────────────────────────────────────────────── */
   const pushHistory = useCallback((next: CanvasNode[]) => {
@@ -208,25 +174,9 @@ export default function CanvasPage() {
     const currentNodes = nodes;
     const existing = currentNodes.filter(n => n.type === type);
     const num = existing.length + 1;
+    const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
+    const cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
     const artboardType: ArtboardType = NODE_TO_ARTBOARD_TYPE[type] ?? 'sketch';
-
-    let cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
-    let cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
-    
-    let nextNodes = [...currentNodes];
-    let nextEdges = [...edges];
-
-    if (selectedNodeId) {
-      const { position, pushdowns } = placeNewChild(selectedNodeId, currentNodes, edges);
-      cwx = position.x;
-      cwy = position.y;
-      
-      nextNodes = currentNodes.map(n => {
-        const pd = pushdowns.get(n.id);
-        return pd ? { ...n, position: pd } : n;
-      });
-    }
-
     const newNode: CanvasNode = {
       id: generateId(),
       type,
@@ -235,64 +185,12 @@ export default function CanvasPage() {
       instanceNumber: num,
       hasThumbnail: false,
       artboardType,
-      parentId: selectedNodeId || undefined,
-      autoPlaced: !!selectedNodeId,
     };
-    
-    nextNodes.push(newNode);
-
-    if (selectedNodeId) {
-      const newEdge: CanvasEdge = {
-        id: generateId(),
-        sourceId: selectedNodeId,
-        targetId: newNode.id,
-      };
-      nextEdges.push(newEdge);
-      setEdges(nextEdges);
-    }
-
-    pushHistory(nextNodes);
+    const next = [...currentNodes, newNode];
+    pushHistory(next);
     setExpandedNodeId(newNode.id);
     setActiveSidebarNodeType(null);
-  }, [nodes, edges, selectedNodeId, offset, scale, pushHistory]);
-
-  /* ── 확장 불가 노드의 자식 노드 생성 ────────────────────────────── */
-  const createChildNode = useCallback((parentId: string, type: NodeType, artboardType: ArtboardType) => {
-    const currentNodes = nodes;
-    const existing = currentNodes.filter(n => n.type === type);
-    const num = existing.length + 1;
-
-    const { position, pushdowns } = placeNewChild(parentId, currentNodes, edges);
-    
-    const nextNodes = currentNodes.map(n => {
-      const pd = pushdowns.get(n.id);
-      return pd ? { ...n, position: pd } : n;
-    });
-
-    const newNode: CanvasNode = {
-      id: generateId(),
-      type,
-      title: `${NODE_DEFINITIONS[type].caption} #${num}`,
-      position,
-      instanceNumber: num,
-      hasThumbnail: false,
-      artboardType,
-      parentId,
-      autoPlaced: true,
-    };
-    
-    nextNodes.push(newNode);
-
-    const newEdge: CanvasEdge = {
-      id: generateId(),
-      sourceId: parentId,
-      targetId: newNode.id,
-    };
-    
-    setEdges(prev => [...prev, newEdge]);
-    pushHistory(nextNodes);
-    setActiveSidebarNodeType(null);
-  }, [nodes, edges, pushHistory]);
+  }, [nodes, offset, scale, pushHistory]);
 
   /* ── '+' 버튼: 빈 아트보드 생성 ─────────────────────────────────── */
   const handleAddArtboard = useCallback(() => {
@@ -314,45 +212,13 @@ export default function CanvasPage() {
     setActiveSidebarNodeType(null);
   }, [nodes, offset, scale, pushHistory]);
 
-  /* ── 이미지 업로드 → image 아트보드 생성 ──────────────────────────── */
-  const handleUploadImage = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (!dataUrl) return;
-      const currentNodes = nodes;
-      const num = currentNodes.length + 1;
-      const cwx = (window.innerWidth  / 2 - offset.x) / scale - CARD_W / 2;
-      const cwy = (window.innerHeight / 2 - offset.y) / scale - 120;
-      const newNode: CanvasNode = {
-        id: generateId(),
-        type: 'image',
-        title: `IMAGE #${num}`,
-        position: { x: cwx, y: cwy },
-        instanceNumber: num,
-        hasThumbnail: true,
-        artboardType: 'image',
-        thumbnailData: dataUrl,
-      };
-      pushHistory([...currentNodes, newNode]);
-      setSelectedNodeIds([newNode.id]);
-      setActiveSidebarNodeType(null);
-    };
-    reader.readAsDataURL(file);
-  }, [nodes, offset, scale, pushHistory]);
-
-
   /* ── expand에서 돌아올 때 항상 썸네일 생성 ──────────────────────── */
   const handleReturnFromExpand = useCallback(() => {
     if (!expandedNodeId) { setExpandedNodeId(null); return; }
     setNodes(prev => {
-      const next = prev.map(n => {
-        if (n.id === expandedNodeId) {
-          const targetArtboardType = NODE_TARGET_ARTBOARD_TYPE[n.type] || n.artboardType;
-          return { ...n, hasThumbnail: true, artboardType: targetArtboardType };
-        }
-        return n;
-      });
+      const next = prev.map(n =>
+        n.id === expandedNodeId ? { ...n, hasThumbnail: true } : n
+      );
       setHistory(h => [...h.slice(0, historyIndex + 1), next]);
       setHistoryIndex(i => i + 1);
       return next;
@@ -378,26 +244,12 @@ export default function CanvasPage() {
   const handleNodeTabSelect = useCallback((type: NodeType) => {
     const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
 
-    /* ── 아트보드가 선택된 경우 ────────────────────────────────────── */
+    /* ── 아트보드가 선택된 경우: 직접 액션 ──────────────────────── */
     if (selectedNode) {
-      /* elevation / viewpoint / diagram: 아트보드 유형 검증 필요 */
-      if (NODES_NAVIGATE_DISABLED.includes(type)) {
-        if (selectedNode.artboardType !== 'image') {
-          showToast('이미지를 선택해 주세요');
-          return;
-        }
-        /* image + elevation/viewpoint/diagram → 자식 노드 파생 */
-        const targetArtboardType = NODE_TO_ARTBOARD_TYPE[type];
-        if (targetArtboardType) {
-          createChildNode(selectedNode.id, type, targetArtboardType);
-        }
-        return;
-      }
-
-      /* 그 외 노드 (planners, plan, image, print): blank → 유형 배정 */
       const targetArtboardType = NODE_TO_ARTBOARD_TYPE[type];
       if (!targetArtboardType) return;
 
+      /* blank 아트보드: 유형 배정 */
       if (selectedNode.artboardType === 'blank') {
         const next = nodes.map(n =>
           n.id === selectedNode.id
@@ -407,21 +259,26 @@ export default function CanvasPage() {
         pushHistory(next);
       }
 
+      /* expand 진입 노드 → 즉시 expand */
       if (NODES_THAT_EXPAND.includes(type)) {
         setExpandedNodeId(selectedNode.id);
       }
+      /* 인-캔버스 노드 (ELEVATION / VIEWPOINT / DIAGRAM): 추후 구현 */
+
       setActiveSidebarNodeType(null);
       return;
     }
 
-    /* ── 아트보드 미선택: 항상 패널 열기 (토글) ──────────────────── */
+    /* ── 아트보드 미선택: 기존 동작 ─────────────────────────────── */
+    if (DIRECT_EXPAND_NODES.includes(type)) {
+      createAndExpandNode(type);
+      return;
+    }
     setActiveSidebarNodeType(prev => prev === type ? null : type);
-  }, [selectedNodeId, nodes, pushHistory, showToast]);
+  }, [selectedNodeId, nodes, pushHistory, createAndExpandNode]);
 
   /* ── "→" 버튼: 사이드바 패널에서 expand 진입 ──────────────────────── */
   const handleNavigateToExpand = useCallback((type: NodeType) => {
-    if (NODES_NAVIGATE_DISABLED.includes(type)) return;
-
     if (selectedNodeId) {
       const selected = nodes.find(n => n.id === selectedNodeId);
       if (selected && selected.type === type) {
@@ -438,6 +295,7 @@ export default function CanvasPage() {
     const node = nodes.find(n => n.id === id);
     if (!node) return;
     setSelectedNodeIds([id]);
+    /* thumbnail 아트보드: 자동으로 PLANNERS 패널 표시 */
     if (node.artboardType === 'thumbnail') {
       setActiveSidebarNodeType('planners');
     } else {
@@ -467,6 +325,7 @@ export default function CanvasPage() {
       title: `${NODE_DEFINITIONS[src.type].caption} #${num}`,
       instanceNumber: num,
       position: { x: src.position.x + 24, y: src.position.y + 24 },
+      hasThumbnail: false,
     }]);
   }, [nodes, pushHistory]);
 
@@ -562,67 +421,9 @@ export default function CanvasPage() {
     </header>
   );
 
-  /* ── 토스트 UI ──────────────────────────────────────────────────── */
-  const ToastIconWarning = () => (
-    <svg viewBox="0 0 20 20" fill="none" style={{ width: 16, height: 16, flexShrink: 0 }}>
-      <path d="M10 2L1 18H19L10 2Z" stroke="#CC0000" strokeWidth="1.6" strokeLinejoin="round" />
-      <line x1="10" y1="8" x2="10" y2="12" stroke="#CC0000" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="10" cy="15" r="0.8" fill="#CC0000" />
-    </svg>
-  );
-
-  const ToastIconSuccess = () => (
-    <svg viewBox="0 0 20 20" fill="none" style={{ width: 16, height: 16, flexShrink: 0 }}>
-      <circle cx="10" cy="10" r="8" stroke="#1A8917" strokeWidth="1.6" />
-      <path d="M6 10L9 13L14 7" stroke="#1A8917" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-
-  const Toast = () => {
-    if (!toast.visible) return null;
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '2rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1100,
-          background: 'var(--color-black)',
-          boxShadow: 'var(--shadow-float)',
-          borderRadius: 'var(--radius-box)',
-          padding: '0.625rem 1rem',
-          fontFamily: 'var(--font-family-pretendard)',
-          fontSize: '0.8125rem',
-          color: 'var(--color-white)',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          opacity: toast.fadingOut ? 0 : 1,
-          transition: toast.fadingOut
-            ? 'opacity 200ms ease'
-            : 'opacity 200ms ease, transform 200ms ease',
-          animation: toast.fadingOut ? 'none' : 'toastSlideUp 200ms ease',
-        }}
-      >
-        {toast.type === 'warning' ? <ToastIconWarning /> : <ToastIconSuccess />}
-        {toast.message}
-      </div>
-    );
-  };
-
   /* ── render ─────────────────────────────────────────────────────── */
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', userSelect: 'none' }}>
-      <style>{`
-        @keyframes toastSlideUp {
-          from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-      `}</style>
-
       <Header />
 
       {expandedNode ? (
@@ -661,7 +462,6 @@ export default function CanvasPage() {
             onNodeExpand={setExpandedNodeId}
             onNodeDuplicate={duplicateNode}
             onNodeDelete={deleteNode}
-
           />
 
           <LeftToolbar
@@ -676,21 +476,16 @@ export default function CanvasPage() {
             onZoomOut={zoomOut}
             onZoomReset={handleZoomCycle}
             onAddArtboard={handleAddArtboard}
-            onUploadImage={handleUploadImage}
           />
 
           <RightSidebar
             activeSidebarNodeType={activeSidebarNodeType}
             selectedArtboardType={selectedArtboardType}
-            hasSelectedArtboard={selectedNodeId !== null}
             onNodeTabSelect={handleNodeTabSelect}
             onNavigateToExpand={handleNavigateToExpand}
-            onShowToast={showToast}
           />
         </div>
       )}
-
-      <Toast />
     </div>
   );
 }

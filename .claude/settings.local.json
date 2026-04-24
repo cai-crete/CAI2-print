@@ -37,7 +37,11 @@
       "Bash(rm \"c:/Users/USER01/Downloads/CAI-2/docs/exec-plans/active/Frontend/artboard-system-redesign-v1.md\")",
       "Bash(git checkout *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(npm --version)",
+      "Read(//c/Users/USER01/.claude/projects/c--Users-USER01-Downloads-CAI/memory\" 2>/dev/**)",
+      "Read(//c/Users/USER01/.claude/projects/c--Users-USER01-Downloads-CAI/memory/**)",
+      "Bash(git rm *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\USER01\\Downloads\\cai-harness-print\\project.10_print\\sources\\document_template",
@@ -47,7 +51,8 @@
       "\\\\loft254\\project\\00_수주개발\\# AI test\\Harness Engineering\\harness_engineering-v2\\docs\\design-docs",
       "\\\\loft254\\project\\00_수주개발\\# AI test\\Harness Engineering\\harness_engineering-v2\\docs\\exec-plans\\active\\Frontend",
       "c:\\Users\\USER01\\.claude\\projects\\c--Users-USER01-Desktop-CAI\\memory",
-      "c:\\Users\\USER01\\Downloads\\CAI-2\\docs\\exec-plans\\active\\Frontend"
+      "c:\\Users\\USER01\\Downloads\\CAI-2\\docs\\exec-plans\\active\\Frontend",
+      "c:\\Users\\USER01\\Downloads\\CAI\\project_node"
     ]
   }
 }

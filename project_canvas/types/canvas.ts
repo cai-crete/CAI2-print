@@ -41,8 +41,7 @@ export interface CanvasNode {
   instanceNumber: number;
   hasThumbnail: boolean;
   artboardType: ArtboardType;  // 아트보드 컨테이너 유형
-  thumbnailData?: string;      // 원본 이미지 데이터 (노드 트리거 시 이 값만 참조)
-  sketchData?: string;         // 스케치 레이어 데이터 (노드 트리거 시 무시)
+  thumbnailData?: string;
   parentId?: string;    // 파생 출처 노드 id
   autoPlaced?: boolean; // Auto Layout 배치 노드 (수동 드래그 시 false로 전환)
 }
@@ -54,8 +53,8 @@ export interface CanvasViewport {
 
 export const NODE_DEFINITIONS: Record<NodeType, { label: string; displayLabel: string; caption: string }> = {
   planners:  { label: 'PLANNERS',           displayLabel: 'PLANNERS',   caption: 'Planners' },
-  plan:      { label: 'SKETCH TO PLAN',     displayLabel: 'SKETCH TO PLAN',  caption: 'Sketch to Plan' },
-  image:     { label: 'SKETCH TO IMAGE',    displayLabel: 'SKETCH TO IMAGE', caption: 'Sketch to Image' },
+  plan:      { label: 'SKETCH TO PLAN',     displayLabel: 'PLAN',       caption: 'Sketch to Plan' },
+  image:     { label: 'SKETCH TO IMAGE',    displayLabel: 'IMAGE',      caption: 'Sketch to Image' },
   elevation: { label: 'IMAGE TO ELEVATION', displayLabel: 'ELEVATION',  caption: 'Image to Elevation' },
   viewpoint: { label: 'CHANGE VIEWPOINT',   displayLabel: 'CHANGE VIEWPOINT', caption: 'Change Viewpoint' },
   diagram:   { label: 'PLAN TO DIAGRAM',    displayLabel: 'DIAGRAM',    caption: 'Plan to Diagram' },
@@ -64,14 +63,14 @@ export const NODE_DEFINITIONS: Record<NodeType, { label: string; displayLabel: s
 };
 
 export const NODE_ORDER: NodeType[] = [
-  'planners', 'plan', 'image', 'elevation', 'viewpoint', 'diagram', 'print',
+  'planners', 'plan', 'image', 'elevation', 'viewpoint', 'diagram', 'print', 'sketch',
 ];
 
-/* 아트보드 유형별 호환(활성) 노드 탭 — 비활성 판별용 */
+/* 아트보드 유형별 호환 노드 탭 */
 export const ARTBOARD_COMPATIBLE_NODES: Record<Exclude<ArtboardType, 'blank'>, NodeType[]> = {
   sketch:    ['image', 'plan'],
   image:     ['elevation', 'viewpoint', 'diagram', 'print'],
-  thumbnail: ['planners', 'print'],
+  thumbnail: ['planners'],
 };
 
 /* 노드 → 아트보드 유형 매핑 (탭 클릭 시 blank 아트보드에 유형 배정) */
@@ -81,65 +80,18 @@ export const NODE_TO_ARTBOARD_TYPE: Partial<Record<NodeType, ArtboardType>> = {
   elevation: 'image',
   viewpoint: 'image',
   diagram:   'image',
-  print:     'thumbnail',
+  print:     'image',
   planners:  'thumbnail',
 };
 
 /* 아트보드 선택 + 탭 클릭 시 expand 진입하는 노드 */
 export const NODES_THAT_EXPAND: NodeType[] = ['image', 'plan', 'print', 'planners'];
 
-/* 아트보드 미선택 패널에서 → 버튼 비활성 노드 */
-export const NODES_NAVIGATE_DISABLED: NodeType[] = ['elevation', 'viewpoint', 'diagram'];
-
-/* 아트보드 미선택 패널 CTA 클릭 시 토스트 메시지 */
-export const PANEL_CTA_MESSAGE: Partial<Record<NodeType, string>> = {
-  plan:      '스케치를 선택해 주세요',
-  image:     '스케치를 선택해 주세요',
-  elevation: '이미지를 선택해 주세요',
-  viewpoint: '이미지를 선택해 주세요',
-  diagram:   '이미지를 선택해 주세요',
-};
-
 /* 아트보드 유형 배지 레이블 */
 export const ARTBOARD_LABEL: Record<Exclude<ArtboardType, 'blank'>, string> = {
   sketch:    'SKETCH',
   image:     'IMAGE',
   thumbnail: 'THUMBNAIL',
-};
-
-/* 노드별 생성 완료 시 반환될 목표 ArtboardType */
-export const NODE_TARGET_ARTBOARD_TYPE: Partial<Record<NodeType, ArtboardType>> = {
-  plan:      'image',
-  image:     'image',
-  elevation: 'image',
-  viewpoint: 'image',
-  diagram:   'image',
-  print:     'thumbnail',
-  planners:  'thumbnail',
-  sketch:    'sketch',
-};
-
-/* 노드 타입별 최종 라벨 (artboardType이 대상 타입에 도달했을 때 표시할 라벨) */
-export const NODE_GENERATED_LABEL: Partial<Record<NodeType, string>> = {
-  plan:      'PLAN',
-  image:     'IMAGE',
-  elevation: 'ELEVATION',
-  viewpoint: 'VIEWPOINT',
-  diagram:   'DIAGRAM',
-  print:     'THUMBNAIL',
-  planners:  'THUMBNAIL',
-  sketch:    'SKETCH',
-};
-
-/* 비활성 탭 클릭 시 토스트 메시지 매핑 */
-export const DISABLED_TAB_MESSAGE: Partial<Record<NodeType, string>> = {
-  elevation: '이미지를 선택해 주세요',
-  viewpoint: '이미지를 선택해 주세요',
-  diagram:   '이미지를 선택해 주세요',
-  plan:      '스케치를 선택해 주세요',
-  image:     '스케치를 선택해 주세요',
-  planners:  '썸네일을 선택해 주세요',
-  print:     '썸네일을 선택해 주세요',
 };
 
 /* 캔버스 좌표(world) → 화면 좌표(screen) */

@@ -1,40 +1,43 @@
-## 작업 일시: 2026-04-23
+## Claude Progress Log — 2026-04-24 (세션 14)
 
-## 방금 무엇을 했는지
+---
 
-exec-plan `Frontend_artboard-labeling-toolbar-sidebar.md` Phase 1~7 전 구현 완료.
+### 방금 무엇을 했는가
 
-### 변경 파일 요약
+**작업 1: project_node/ 디렉토리 제거**
 
-| 파일 | 변경 내용 |
-|------|-----------|
-| `project_canvas/types/canvas.ts` | ArtboardType에 imageStatic/imageEditable 추가(image 제거). NODE_ORDER에서 'sketch' 제거(사이드바 미노출). ARTBOARD_COMPATIBLE_NODES/NODE_TO_ARTBOARD_TYPE/ARTBOARD_LABEL 전면 업데이트. NODES_NAVIGATE_DISABLED, PANEL_CTA_MESSAGE 상수 신규 추가. |
-| `project_canvas/components/NodeCard.tsx` | onConvertToEditable? prop 추가. imageStatic 선택 시 연필 버튼 렌더링. imageStatic/imageEditable + thumbnailData 있으면 실제 이미지 렌더링. |
-| `project_canvas/components/LeftToolbar.tsx` | '+' 버튼 → 드롭다운(새 아트보드 / 이미지 업로드). onUploadImage? prop 추가(optional, ExpandedView에서는 no-op). |
-| `project_canvas/components/RightSidebar.tsx` | ARTBOARD_TOOLS 조건 확장(imageStatic/imageEditable). → 버튼 NODES_NAVIGATE_DISABLED 비활성화. NodePanel GENERATE 분기(hasSelectedArtboard + PANEL_CTA_MESSAGE). planners NodePanel GENERATE 버튼 숨김. hasSelectedArtboard/onShowToast prop 추가. |
-| `project_canvas/components/InfiniteCanvas.tsx` | onNodeConvertToEditable? prop 추가 및 NodeCard에 전달. |
-| `project_canvas/app/page.tsx` | DIRECT_EXPAND_NODES 삭제. handleNodeTabSelect 수정(elevation/viewpoint/diagram 검증 + 토스트). handleNavigateToExpand NODES_NAVIGATE_DISABLED 차단. handleUploadImage(FileReader→imageStatic 노드). handleConvertToEditable(imageStatic→imageEditable). Toast 컴포넌트 + showToast. lsLoadItems 'image'→'imageStatic' 마이그레이션. |
+- `project_node/_context/` 3개 파일(`brand-guidelines.md`, `business-context.md`, `design-style-guide-node.md`)이
+  `project_canvas/_context/`와 완전히 동일 (diff 확인)
+- `project_canvas/`가 이미 동일 파일을 보유하므로 이동 불필요
+- `project_node/` 디렉토리 삭제 완료 (git 미추적 상태였음)
 
-TypeScript 오류 0건 확인 완료.
+**작업 2: exec-plan 완료 처리**
 
-## 어디까지 완료됐는지
+- `fix-sti-error-and-expand-button-260423.md` 미완료 체크리스트에 보류 표기 추가
+  (브라우저 검증 3개 항목 → `.env.local` 설정 후 검증 예정)
+- `active/` → `completed/Frontend/` 이동 완료
 
-- Phase 1~7 구현 완료 ✅
-- TypeScript 오류 0건 ✅
-- exec-plan Progress 7개 항목 체크 완료 ✅
-- 브라우저 테스트 및 git commit/push 미완료
+---
 
-## 다음에 무엇을 해야 하는지
+### 어디까지 완료됐는가
 
-1. **브라우저 테스트**: 개발 서버 실행 후 아래 시나리오 검증
-   - '+' 버튼 드롭다운 → '새 아트보드' / '이미지 업로드' 동작
-   - 이미지 업로드 → imageStatic 아트보드 캔버스 등록 + 이미지 표시
-   - imageStatic 선택 → 연필 버튼 노출 → 클릭 시 imageEditable 전환 확인
-   - blank + elevation/viewpoint/diagram 클릭 → 토스트 "이미지를 선택해 주세요"
-   - imageStatic + elevation/viewpoint/diagram 클릭 → 유형 배정(차단 없음)
-   - 아트보드 미선택 탭 클릭 → 패널 열림(바로 expand 없음)
-   - elevation 패널 → 버튼 비활성(회색), GENERATE → 토스트
-   - SKETCH 탭 사이드바 미노출 확인
-2. **git commit & push** 후 exec-plan `completed/`로 이동
+| 항목 | 상태 |
+|------|------|
+| `project_node/` 삭제 | ✅ 완료 |
+| `fix-sti-error-and-expand-button-260423.md` → completed | ✅ 완료 |
+| `middle-button-panning.md` | ⏸️ 보류 (사용자 지시) |
+| `.env.local` 생성 | ⏸️ 보류 (GEMINI_API_KEY 미수령) |
+| 브라우저 검증 (STI Generate, EXPAND 버튼) | ⏸️ `.env.local` 설정 후 진행 |
+
+---
+
+### 다음에 무엇을 해야 하는가
+
+1. GEMINI_API_KEY 수령 시 `project_canvas/.env.local` 생성
+2. 개발 서버 실행 후 STI Generate 500 오류 해소 검증
+3. EXPAND 버튼 표시 조건 브라우저 검증 (blank 외 노드 → 표시, blank → 미표시)
+4. `middle-button-panning.md` 구현 (보류 해제 시)
+
+---
 
 COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.

@@ -20,8 +20,8 @@
 - [x] components/InfiniteCanvas.tsx — SVG EdgeLayer 위치 변경, 포트 타입 계산
 - [x] app/page.tsx — 데모 다중부모 엣지(3번째), 드래그 commit 시 autoPlaced false
 - [x] TypeScript 빌드 통과 (next build clean)
-- [ ] dev 서버 실행 + UI 검증
-- [ ] claude-progress.txt 업데이트
+- [x] dev 서버 실행 (localhost:3900)
+- [x] claude-progress.txt 업데이트
 
 ## 포트 props 명세
 

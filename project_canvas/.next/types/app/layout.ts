@@ -1,4 +1,4 @@
-// File: C:\Users\USER01\Downloads\CAI\project_canvas\app\layout.tsx
+// File: D:\OneDrive\바탕 화면\CRETE\cai-canvas-v2\project_canvas\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

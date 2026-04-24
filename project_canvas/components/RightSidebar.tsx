@@ -1,19 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  NodeType, NODE_DEFINITIONS, NODE_ORDER, ArtboardType,
-  ARTBOARD_COMPATIBLE_NODES, NODES_NAVIGATE_DISABLED, PANEL_CTA_MESSAGE,
-  DISABLED_TAB_MESSAGE,
-} from '@/types/canvas';
+import { NodeType, NODE_DEFINITIONS, NODE_ORDER, ArtboardType, ARTBOARD_COMPATIBLE_NODES } from '@/types/canvas';
 
 interface Props {
   activeSidebarNodeType: NodeType | null;
   selectedArtboardType: ArtboardType | null;
-  hasSelectedArtboard: boolean;
   onNodeTabSelect: (type: NodeType) => void;
   onNavigateToExpand: (type: NodeType) => void;
-  onShowToast: (message: string, type?: 'warning' | 'success') => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -24,42 +18,8 @@ const IconNavigate    = () => (
   <svg viewBox="0 0 20 20" {...IC}><path d="M4 10H16M11 5L16 10L11 15" /></svg>
 );
 
-interface NodePanelProps {
-  type: NodeType;
-  hasSelectedArtboard: boolean;
-  onGenerate: () => void;
-  onShowToast: (message: string, type?: 'warning' | 'success') => void;
-}
-
-function NodePanel({ type, hasSelectedArtboard, onGenerate, onShowToast }: NodePanelProps) {
+function NodePanel({ type, onGenerate }: { type: NodeType; onGenerate: () => void }) {
   const def = NODE_DEFINITIONS[type];
-
-  const handleGenerateClick = () => {
-    if (!hasSelectedArtboard) {
-      const msg = PANEL_CTA_MESSAGE[type];
-      if (msg) {
-        onShowToast(msg);
-        return;
-      }
-    }
-    onGenerate();
-  };
-
-  /* planners: GENERATE 버튼 없음 */
-  if (type === 'planners') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '1.5rem 1rem' }}>
-        <span className="text-title" style={{ fontSize: '0.75rem', color: 'var(--color-gray-300)', letterSpacing: '0.08em' }}>
-          {def.displayLabel}
-        </span>
-        <span style={{ display: 'block', width: 28, height: 1, background: 'var(--color-gray-200)', margin: '0.5rem 0' }} />
-        <span className="text-caption" style={{ color: 'var(--color-gray-300)', textAlign: 'center' }}>
-          API 연동 후 활성화
-        </span>
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '1.5rem 1rem 1rem', gap: '0.75rem' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
@@ -72,7 +32,7 @@ function NodePanel({ type, hasSelectedArtboard, onGenerate, onShowToast }: NodeP
         </span>
       </div>
       <button
-        onClick={handleGenerateClick}
+        onClick={onGenerate}
         style={{
           width: '100%', height: 'var(--h-cta-lg)', border: 'none',
           borderRadius: 'var(--radius-pill)', background: 'var(--color-black)',
@@ -89,10 +49,15 @@ function NodePanel({ type, hasSelectedArtboard, onGenerate, onShowToast }: NodeP
   );
 }
 
+/* ── 아트보드 유형별 헤더 레이블 ──────────────────────────────── */
+const ARTBOARD_TOOLS_LABEL: Record<'sketch' | 'image', string> = {
+  sketch: 'SKETCH TOOLS',
+  image:  'IMAGE TOOLS',
+};
+
 export default function RightSidebar({
   activeSidebarNodeType, selectedArtboardType,
-  hasSelectedArtboard,
-  onNodeTabSelect, onNavigateToExpand, onShowToast,
+  onNodeTabSelect, onNavigateToExpand,
 }: Props) {
   const [accordionOpen, setAccordionOpen] = useState(true);
 
@@ -115,80 +80,75 @@ export default function RightSidebar({
   const hoverOff = (e: React.MouseEvent<HTMLButtonElement>) =>
     (e.currentTarget.style.backgroundColor = 'transparent');
 
-  /* ── 비활성 탭 판별 헬퍼 ────────────────────────────────────── */
-  const isTabDisabled = (type: NodeType): boolean => {
-    if (!selectedArtboardType) return false;
-    if (selectedArtboardType === 'blank') return NODES_NAVIGATE_DISABLED.includes(type);
-    const compatible = ARTBOARD_COMPATIBLE_NODES[selectedArtboardType];
-    return !compatible.includes(type);
-  };
+  const tabBtn = (type: NodeType) => (
+    <div key={type} style={pill()}>
+      <button
+        onClick={() => onNodeTabSelect(type)}
+        style={{
+          width: '100%', height: 'var(--h-cta-lg)', display: 'flex',
+          alignItems: 'center', padding: '0 1rem', border: 'none',
+          background: 'transparent', cursor: 'pointer',
+          borderRadius: 'var(--radius-pill)', fontFamily: 'var(--font-family-bebas)',
+          fontSize: '1rem', letterSpacing: '0.04em', color: 'var(--color-black)',
+          textAlign: 'left', transition: 'background-color 150ms ease',
+        }}
+        onMouseEnter={hoverOn}
+        onMouseLeave={hoverOff}
+        onMouseDown={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-200)')}
+        onMouseUp={e => (e.currentTarget.style.backgroundColor = 'var(--color-gray-100)')}
+      >
+        {NODE_DEFINITIONS[type].displayLabel}
+      </button>
+    </div>
+  );
 
-  const tabBtn = (type: NodeType) => {
-    const disabled = isTabDisabled(type);
+  /* ══════════════════════════════════════════════════════════════
+     SKETCH TOOLS / IMAGE TOOLS 모드
+     — sketch 또는 image 아트보드가 선택된 상태
+     — 호환 노드 탭만 표시, 클릭 시 직접 액션 (패널 없음)
+  ══════════════════════════════════════════════════════════════ */
+  if (selectedArtboardType === 'sketch' || selectedArtboardType === 'image') {
+    const label = ARTBOARD_TOOLS_LABEL[selectedArtboardType];
+    const compatibleNodes = ARTBOARD_COMPATIBLE_NODES[selectedArtboardType];
     return (
-      <div key={type} style={pill()}>
-        <button
-          onClick={() => {
-            if (disabled) {
-              const msg = DISABLED_TAB_MESSAGE[type];
-              if (msg) onShowToast(msg);
-              return;
-            }
-            onNodeTabSelect(type);
-          }}
-          style={{
+      <div style={area}>
+        {/* 헤더 */}
+        <div style={pill()}>
+          <div style={{
             width: '100%', height: 'var(--h-cta-lg)', display: 'flex',
-            alignItems: 'center', padding: '0 1rem', border: 'none',
-            background: 'transparent',
-            cursor: disabled ? 'not-allowed' : 'pointer',
-            borderRadius: 'var(--radius-pill)', fontFamily: 'var(--font-family-bebas)',
-            fontSize: '1rem', letterSpacing: '0.04em',
-            color: disabled ? 'var(--color-gray-300)' : 'var(--color-black)',
-            textAlign: 'left', transition: 'background-color 150ms ease',
-          }}
-          onMouseEnter={e => { if (!disabled) hoverOn(e); }}
-          onMouseLeave={e => { if (!disabled) hoverOff(e); }}
-          onMouseDown={e => { if (!disabled) e.currentTarget.style.backgroundColor = 'var(--color-gray-200)'; }}
-          onMouseUp={e => { if (!disabled) e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; }}
-        >
-          {NODE_DEFINITIONS[type].displayLabel}
-        </button>
+            alignItems: 'center', padding: '0 1rem',
+          }}>
+            <span className="text-title" style={{ color: 'var(--color-black)', letterSpacing: '0.04em' }}>
+              {label}
+            </span>
+          </div>
+        </div>
+        {/* 호환 노드 탭 목록 */}
+        {compatibleNodes.map(tabBtn)}
       </div>
     );
-  };
+  }
 
   /* ══════════════════════════════════════════════════════════════
      PANEL 모드 — thumbnail 아트보드 선택 시 or 미선택 탭 클릭
   ══════════════════════════════════════════════════════════════ */
   if (isPanelMode) {
-    const isNavDisabled = NODES_NAVIGATE_DISABLED.includes(activeSidebarNodeType!);
     return (
       <div style={{ ...area, overflowY: 'hidden' }}>
         {/* 헤더 행: [→ pill] + [노드탭 pill] */}
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch', flexShrink: 0 }}>
           <div style={{ ...pill(), width: 'var(--h-cta-lg)', height: 'var(--h-cta-lg)' }}>
             <button
-              onClick={() => { if (!isNavDisabled) onNavigateToExpand(activeSidebarNodeType!); }}
-              title={isNavDisabled ? '이미지를 선택해 주세요' : 'expand로 이동'}
-              disabled={isNavDisabled}
+              onClick={() => onNavigateToExpand(activeSidebarNodeType!)}
+              title="expand로 이동"
               style={{
                 width: '100%', height: '100%', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', border: 'none', background: 'transparent',
-                cursor: isNavDisabled ? 'not-allowed' : 'pointer',
-                borderRadius: 'var(--radius-pill)',
-                color: isNavDisabled ? 'var(--color-gray-300)' : 'var(--color-gray-500)',
-                transition: 'background-color 100ms ease, color 100ms ease',
+                cursor: 'pointer', borderRadius: 'var(--radius-pill)',
+                color: 'var(--color-gray-500)', transition: 'background-color 100ms ease, color 100ms ease',
               }}
-              onMouseEnter={e => {
-                if (!isNavDisabled) {
-                  hoverOn(e);
-                  e.currentTarget.style.color = 'var(--color-black)';
-                }
-              }}
-              onMouseLeave={e => {
-                hoverOff(e);
-                e.currentTarget.style.color = isNavDisabled ? 'var(--color-gray-300)' : 'var(--color-gray-500)';
-              }}
+              onMouseEnter={e => { hoverOn(e); e.currentTarget.style.color = 'var(--color-black)'; }}
+              onMouseLeave={e => { hoverOff(e); e.currentTarget.style.color = 'var(--color-gray-500)'; }}
             >
               <span style={{ width: 20, height: 20, display: 'flex' }}><IconNavigate /></span>
             </button>
@@ -224,9 +184,7 @@ export default function RightSidebar({
         }}>
           <NodePanel
             type={activeSidebarNodeType!}
-            hasSelectedArtboard={hasSelectedArtboard}
             onGenerate={() => onNavigateToExpand(activeSidebarNodeType!)}
-            onShowToast={onShowToast}
           />
         </div>
       </div>
@@ -234,8 +192,7 @@ export default function RightSidebar({
   }
 
   /* ══════════════════════════════════════════════════════════════
-     SELECT TOOLS 모드 — 모든 아트보드 상태 (미선택 / blank / sketch / image / thumbnail)
-     7개 노드 탭 상시 노출, 비호환 노드는 비활성 스타일
+     SELECT TOOLS 모드 — 아트보드 미선택 / blank 선택
   ══════════════════════════════════════════════════════════════ */
   return (
     <div className="no-scrollbar" style={area}>

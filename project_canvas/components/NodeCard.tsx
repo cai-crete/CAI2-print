@@ -33,15 +33,6 @@ const IconDownload = () => (
   </svg>
 );
 
-const IconExpand = () => (
-  <svg viewBox="0 0 20 20" {...IC}>
-    <path d="M3 3H8M3 3V8M3 3L8 8" />
-    <path d="M17 3H12M17 3V8M17 3L12 8" />
-    <path d="M3 17H8M3 17V12M3 17L8 12" />
-    <path d="M17 17H12M17 17V12M17 17L12 12" />
-  </svg>
-);
-
 const IconDelete = () => (
   <svg viewBox="0 0 20 20" {...IC}>
     <path d="M5 5L5 16A2 2 0 0 0 7 18H13A2 2 0 0 0 15 16V5" />
@@ -51,6 +42,14 @@ const IconDelete = () => (
   </svg>
 );
 
+const IconExpand = () => (
+  <svg viewBox="0 0 20 20" {...IC}>
+    <polyline points="12,3 17,3 17,8" />
+    <polyline points="3,12 3,17 8,17" />
+    <line x1="17" y1="3" x2="11" y2="9" />
+    <line x1="3" y1="17" x2="9" y2="11" />
+  </svg>
+);
 
 const CARD_W_REM = '17.5rem';
 const CARD_H_REM = '12.375rem';
@@ -103,11 +102,9 @@ export default function NodeCard({
     if (dx < 6 && dy < 6) {
       const now = Date.now();
       if (now - lastTapTimeRef.current < 300 && !isBlank) {
-        /* 더블클릭/더블탭 → expand (blank 제외) */
         lastTapTimeRef.current = 0;
         onExpand(id);
       } else {
-        /* 단일 클릭/탭 → 선택 */
         lastTapTimeRef.current = now;
         onSelect(id);
       }
@@ -132,9 +129,7 @@ export default function NodeCard({
 
   const isBlank = artboardType === 'blank';
 
-  /* 아트보드 테두리: blank = 점선, typed = 실선 */
   const artboardBorder = 'none';
-
   const artboardBoxShadow = isSelected ? '0 0 0 2px var(--color-black), var(--shadow-float)' : 'var(--shadow-float)';
 
   return (
@@ -153,13 +148,12 @@ export default function NodeCard({
             pointerEvents: 'all',
           }}
         >
-
           <button
             title="복제"
             style={actionBtnBase}
             onClick={e => { e.stopPropagation(); onDuplicate(id); }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
+            onPointerEnter={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
+            onPointerLeave={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
           >
             <span style={{ width: 16, height: 16, display: 'flex' }}><IconDuplicate /></span>
           </button>
@@ -168,8 +162,8 @@ export default function NodeCard({
             title="다운로드"
             style={actionBtnBase}
             onClick={e => e.stopPropagation()}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
+            onPointerEnter={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
+            onPointerLeave={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
           >
             <span style={{ width: 16, height: 16, display: 'flex' }}><IconDownload /></span>
           </button>
@@ -178,8 +172,8 @@ export default function NodeCard({
             title="삭제"
             style={actionBtnBase}
             onClick={e => { e.stopPropagation(); onDelete(id); }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#fff0f0'; e.currentTarget.style.color = '#cc0000'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
+            onPointerEnter={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = '#fff0f0'; e.currentTarget.style.color = '#cc0000'; }}
+            onPointerLeave={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
           >
             <span style={{ width: 16, height: 16, display: 'flex' }}><IconDelete /></span>
           </button>
@@ -203,54 +197,87 @@ export default function NodeCard({
           transition: 'box-shadow 150ms ease',
         }}
       >
-        {/* ── 아트보드 내용 ──────────────────────────────────────── */}
-        {isBlank ? (
-          /* blank: 빈 아트보드 플레이스홀더 */
-          <div
+        {/* ── 확대 버튼: 선택 + blank 제외 모든 아트보드에 표시 ────── */}
+        {isSelected && artboardType !== 'blank' && (
+          <button
+            title="전체 화면으로 열기"
+            onClick={e => { e.stopPropagation(); onExpand(id); }}
             style={{
               position: 'absolute',
-              inset: 0,
+              top: 8,
+              right: 8,
+              zIndex: 10,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              border: '1.5px solid var(--color-gray-200)',
+              background: 'var(--color-white)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              pointerEvents: 'none',
+              color: 'var(--color-gray-500)',
+              transition: 'border-color 100ms ease, color 100ms ease, box-shadow 100ms ease',
+            }}
+            onPointerEnter={e => {
+              if (e.pointerType !== 'mouse') return;
+              e.currentTarget.style.borderColor = 'var(--color-black)';
+              e.currentTarget.style.color = 'var(--color-black)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+            }}
+            onPointerLeave={e => {
+              if (e.pointerType !== 'mouse') return;
+              e.currentTarget.style.borderColor = 'var(--color-gray-200)';
+              e.currentTarget.style.color = 'var(--color-gray-500)';
+              e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.12)';
             }}
           >
-          </div>
-        ) : artboardType === 'image' && node.thumbnailData ? (
-          /* image: 업로드된 실제 이미지 */
+            <span style={{ width: 14, height: 14, display: 'flex' }}><IconExpand /></span>
+          </button>
+        )}
+
+        {/* ── 아트보드 내용 ──────────────────────────────────────── */}
+        {isBlank ? (
+          /* blank: 빈 플레이스홀더 */
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+        ) : (artboardType === 'image' && node.thumbnailData) ? (
+          /* image 아트보드 + 데이터 있음 */
           <img
             src={node.thumbnailData}
-            alt=""
+            alt={def.displayLabel}
             style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              pointerEvents: 'none',
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%',
+              objectFit: 'contain', pointerEvents: 'none',
             }}
           />
         ) : hasThumbnail ? (
-          /* 썸네일 있음 */
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}
-          >
-            <span
-              className="text-title"
-              style={{ fontSize: '0.75rem', color: 'var(--color-gray-400)', letterSpacing: '0.08em' }}
+          /* 기타 아트보드 썸네일 */
+          node.thumbnailData ? (
+            <img
+              src={`data:image/png;base64,${node.thumbnailData}`}
+              alt={def.displayLabel}
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'contain', pointerEvents: 'none',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
             >
-              {def.displayLabel}
-            </span>
-          </div>
+              <span className="text-title" style={{ fontSize: '0.75rem', color: 'var(--color-gray-400)', letterSpacing: '0.08em' }}>
+                {def.displayLabel}
+              </span>
+            </div>
+          )
         ) : (
           /* 썸네일 없음 — 플레이스홀더 */
           <div
@@ -276,37 +303,6 @@ export default function NodeCard({
               썸네일 없음
             </span>
           </div>
-        )}
-
-        {/* ── image 전용 expand 버튼 (아트보드 내부 우측 상단) ───── */}
-        {isSelected && artboardType === 'image' && (
-          <button
-            title="확대하여 스케치"
-            onClick={e => { e.stopPropagation(); onExpand(id); }}
-            style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              width: 32,
-              height: 32,
-              border: 'none',
-              borderRadius: 'var(--radius-pill)',
-              background: 'var(--color-white)',
-              boxShadow: 'var(--shadow-float)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--color-gray-500)',
-              transition: 'background-color 100ms ease, color 100ms ease',
-              zIndex: 10,
-              pointerEvents: 'all',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; e.currentTarget.style.color = 'var(--color-black)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--color-white)'; e.currentTarget.style.color = 'var(--color-gray-500)'; }}
-          >
-            <span style={{ width: 16, height: 16, display: 'flex' }}><IconExpand /></span>
-          </button>
         )}
 
         {/* ── 아트보드 유형 배지 (blank 제외) ────────────────────── */}

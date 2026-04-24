@@ -1,0 +1,64 @@
+## Claude Progress Log — 2026-04-23 (세션 11)
+
+---
+
+### 방금 무엇을 했는가
+
+두 가지 작업 수행:
+
+1. **썸네일 100% 줌 고정**
+   - `SketchCanvas.tsx`: `exportThumbnail()` 추가 → 항상 zoom=100%/offset={0,0}으로 canvas export
+   - `sketch-to-image/ExpandedView.tsx`: `handleSketchCollapse` / `handleGenerate`에서 `exportThumbnail()` 별도 호출 → `thumbnailBase64` 분리 전달
+   - `app/page.tsx`: `handleCollapseWithSketch(sketchBase64, thumbnailBase64, panelSettings)` 시그니처 변경 — `thumbnailData = generatedImageData ?? thumbnailBase64`
+   - `app/page.tsx`: `handleGenerateComplete({ sketchBase64, thumbnailBase64, generatedBase64, nodeId })` — 원본 노드 `thumbnailData = thumbnailBase64` (100% zoom)
+
+2. **ExpandedView 모듈 분리 + Protocol 이동**
+   - `sketch-to-image/ExpandedView.tsx` (신규) — sketch-to-image 전용 expanded view 분리
+   - `sketch-to-image/_context/protocol-sketch-to-image-v2.3.txt` (이동) — `_context/`에서 sketch-to-image 모듈로
+   - `components/ExpandedSidebar.tsx` (신규) — 공유 사이드바 컴포넌트 분리
+   - `components/ExpandedView.tsx` (슬림화) — 라우터로 변환: `isSketchImageMode → <SketchToImageExpandedView>`, else 기존 레이아웃
+
+---
+
+### 어디까지 완료됐는가
+
+**수정/생성 파일:**
+| 파일 | 변경 내용 |
+|------|-----------|
+| `components/SketchCanvas.tsx` | `exportThumbnail()` 추가 (100% zoom 고정 export) |
+| `components/ExpandedSidebar.tsx` | 신규 분리 (공유 컴포넌트) |
+| `components/ExpandedView.tsx` | 라우터로 슬림화 (sketch-to-image → 위임) |
+| `sketch-to-image/ExpandedView.tsx` | 신규 생성 (sketch-to-image 전용) |
+| `sketch-to-image/_context/protocol-sketch-to-image-v2.3.txt` | protocol 이동 |
+| `app/page.tsx` | handleCollapseWithSketch / handleGenerateComplete 시그니처 업데이트 |
+
+**디렉토리 구조:**
+```
+project_canvas/
+├── sketch-to-image/
+│   ├── _context/
+│   │   └── protocol-sketch-to-image-v2.3.txt
+│   └── ExpandedView.tsx
+├── _context/
+│   ├── brand-guidelines.md
+│   ├── business-context.md
+│   └── design-style-guide-node.md
+└── components/
+    ├── ExpandedView.tsx          (라우터)
+    ├── ExpandedSidebar.tsx       (공유)
+    └── SketchCanvas.tsx          (exportThumbnail 추가)
+```
+
+**exec-plan:**
+- `completed/Frontend/thumbnail-zoom-expanded-view-split-260423.md` ✅
+
+---
+
+### 다음에 무엇을 해야 하는가
+
+현재 active/에 진행 중인 exec-plan 없음.
+신규 사용자 지시 대기.
+
+---
+
+COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.

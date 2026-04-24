@@ -14,7 +14,18 @@
     "jsx": "preserve",
     "incremental": true,
     "plugins": [{ "name": "next" }],
-    "paths": { "@/*": ["./*"] }
+    "paths": {
+      "@/app/*":              ["./node_modules/@cai-crete/print-components/app/*"],
+      "@/types/print-canvas": ["./node_modules/@cai-crete/print-components/types/print-canvas"],
+      "@/lib/types":          ["./node_modules/@cai-crete/print-components/lib/types"],
+      "@/lib/export":         ["./node_modules/@cai-crete/print-components/lib/export"],
+      "@/lib/saves":          ["./node_modules/@cai-crete/print-components/lib/saves"],
+      "@/lib/imageUtils":     ["./node_modules/@cai-crete/print-components/lib/imageUtils"],
+      "@/lib/thumbnailUtils": ["./node_modules/@cai-crete/print-components/lib/thumbnailUtils"],
+      "@/lib/htmlUtils":      ["./node_modules/@cai-crete/print-components/lib/htmlUtils"],
+      "@/lib/agentErrors":    ["./node_modules/@cai-crete/print-components/lib/agentErrors"],
+      "@/*":                  ["./*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

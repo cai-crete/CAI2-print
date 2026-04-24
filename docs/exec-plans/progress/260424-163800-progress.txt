@@ -1,0 +1,20 @@
+## 세션 20 — 2026-04-24
+
+### 방금 무엇을 했는지
+`docs/exec-plans/active/print-ui-fix-260424.md` 상의 **Fix 7-A** 구현을 완료했습니다. 사용자 지시에 따라 원형 분리 상태를 유지하되, 테두리(stroke)를 제거했습니다.
+
+### 완료된 작업
+
+1. **Fix 7-A — 좌측 툴바 재구성 및 save 버튼 스타일 수정** ✅
+   - 파일: `project_canvas/components/ExpandedView.tsx`
+   - 작업: `renderToolbarWrapper` 내부의 `tools.save` 렌더링 부분을 `<div className="print-save-wrapper">`로 감싸도록 수정했습니다.
+   - 파일: `project_canvas/app/globals.css`
+   - 작업: `.print-save-wrapper button { border: none !important; }` CSS 규칙을 추가하여, 분리된 원형 save 버튼에 존재하던 회색 테두리(stroke)를 깔끔하게 제거했습니다.
+
+3. **계획서 상태 업데이트** ✅
+   - 파일: `docs/exec-plans/active/print-ui-fix-260424.md`
+   - 작업: Fix 7-A 항목 상태를 `✅ 완료`로 변경했습니다.
+
+### 다음에 무엇을 해야 하는지
+- **Fix 5**: 우측 사이드바 내용 불일치 문제를 해결할 방향(선택지 A, B, C 중)에 대한 사용자 결정을 대기합니다.
+- **Fix 7-B**: 툴바에 `new` 및 `zoom` 기능 추가는 Print 패키지 API 확장이 필요하므로 Print 개발자와의 협의가 선행되어야 합니다.

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@cai-crete/print-components": "^0.1.0",
     "@google/generative-ai": "^0.24.1",
     "localforage": "^1.10.0",
     "next": "^15.3.0",

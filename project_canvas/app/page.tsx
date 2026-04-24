@@ -7,6 +7,7 @@ import {
   ArtboardType, NODE_TO_ARTBOARD_TYPE, NODES_THAT_EXPAND,
   NODE_DEFINITIONS, COL_GAP_PX, SketchPanelSettings, PlanPanelSettings,
   NODES_NAVIGATE_DISABLED, NODE_TARGET_ARTBOARD_TYPE,
+  PrintSavedState, PrintSaveResult, SelectedImage,
 } from '@/types/canvas';
 import { placeNewChild } from '@/lib/autoLayout';
 import InfiniteCanvas    from '@/components/InfiniteCanvas';
@@ -117,6 +118,11 @@ export default function CanvasPage() {
 
   /* ── 통합 사이드바 상태 ──────────────────────────────────────────── */
   const [activeSidebarNodeType, setActiveSidebarNodeType] = useState<NodeType | null>(null);
+
+  /* ── Print 상태 ──────────────────────────────────────────────────── */
+  const [printSavedStates,   setPrintSavedStates]   = useState<Record<string, PrintSavedState>>({});
+  const [printInitialAction, setPrintInitialAction] = useState<'generate' | 'library' | 'video' | null>(null);
+  const [selectedImages,     setSelectedImages]     = useState<SelectedImage[]>([]);
 
   /* ── Toast 시스템 ─────────────────────────────────────────────── */
   type ToastType = 'warning' | 'success';
@@ -344,6 +350,8 @@ export default function CanvasPage() {
       setNodes(prev => {
         const next = prev.map(n => {
           if (n.id !== expandedNodeId) return n;
+          /* Print 노드: handlePrintSave/handlePrintDelete가 상태 관리 → 여기선 변경하지 않음 */
+          if (n.type === 'print') return n;
           const targetArtboardType = NODE_TARGET_ARTBOARD_TYPE[n.type] || n.artboardType;
           return { ...n, hasThumbnail: true, artboardType: targetArtboardType };
         });
@@ -352,8 +360,57 @@ export default function CanvasPage() {
         return next;
       });
     }
+    setPrintInitialAction(null);
+    setSelectedImages([]);
     setExpandedNodeId(null);
   }, [expandedNodeId, nodes, historyIndex]);
+
+  /* ── Print SAVE ──────────────────────────────────────────────────── */
+  const handlePrintSave = useCallback((result: PrintSaveResult) => {
+    if (!expandedNodeId) return;
+    setPrintSavedStates(prev => ({
+      ...prev,
+      [expandedNodeId]: {
+        html: result.html,
+        mode: result.mode,
+        savedAt: new Date().toISOString(),
+      },
+    }));
+    setNodes(prev => prev.map(n =>
+      n.id === expandedNodeId
+        ? { ...n, hasThumbnail: true, thumbnailData: result.thumbnail }
+        : n
+    ));
+  }, [expandedNodeId]);
+
+  /* ── Print DELETE ────────────────────────────────────────────────── */
+  const handlePrintDelete = useCallback(() => {
+    if (!expandedNodeId) return;
+    setPrintSavedStates(prev => {
+      const next = { ...prev };
+      delete next[expandedNodeId];
+      return next;
+    });
+    setNodes(prev => prev.map(n =>
+      n.id === expandedNodeId
+        ? { ...n, hasThumbnail: false, thumbnailData: undefined }
+        : n
+    ));
+    setPrintInitialAction(null);
+    setSelectedImages([]);
+    setExpandedNodeId(null);
+  }, [expandedNodeId]);
+
+  /* ── Print 사이드바 액션 (생성하기 / 라이브러리 / 영상만들기) ──────── */
+  const handlePrintSidebarAction = useCallback((action: 'generate' | 'library' | 'video') => {
+    setPrintInitialAction(action);
+    if (selectedNodeId) {
+      setExpandedNodeId(selectedNodeId);
+      setActiveSidebarNodeType(null);
+    } else {
+      createAndExpandNode('print');
+    }
+  }, [selectedNodeId, createAndExpandNode]);
 
   /* ── sketch-image [<-]: 스케치 + 패널 설정 저장 ─────────────────── */
   const handleCollapseWithSketch = useCallback((sketchBase64: string, thumbnailBase64: string, panelSettings?: SketchPanelSettings) => {
@@ -533,9 +590,9 @@ export default function CanvasPage() {
     const node = nodes.find(n => n.id === id);
     if (!node) return;
     setSelectedNodeIds([id]);
-    /* thumbnail 아트보드: 자동으로 PLANNERS 패널 표시 */
+    /* thumbnail 아트보드: 노드 유형에 맞는 패널 표시 (print → print, planners → planners) */
     if (node.artboardType === 'thumbnail') {
-      setActiveSidebarNodeType('planners');
+      setActiveSidebarNodeType(node.type);
     } else {
       setActiveSidebarNodeType(null);
     }
@@ -570,6 +627,12 @@ export default function CanvasPage() {
     setSelectedNodeIds(prev => {
       if (prev.includes(id)) setActiveSidebarNodeType(null);
       return prev.filter(sid => sid !== id);
+    });
+    setPrintSavedStates(prev => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
     const nextNodes = nodes.filter(n => n.id !== id);
     const nextEdges = edgesRef.current.filter(e => e.sourceId !== id && e.targetId !== id);
@@ -743,6 +806,11 @@ export default function CanvasPage() {
           onGeneratePlanComplete={handleGeneratePlanComplete}
           onGeneratingChange={setIsGenerating}
           isGenerating={isGenerating}
+          printSavedState={expandedNode ? printSavedStates[expandedNode.id] : undefined}
+          printInitialAction={printInitialAction}
+          selectedImages={selectedImages}
+          onPrintSave={handlePrintSave}
+          onPrintDelete={handlePrintDelete}
         />
       ) : (
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -788,6 +856,9 @@ export default function CanvasPage() {
             onNavigateToExpand={handleNavigateToExpand}
             hasSelectedArtboard={selectedNodeId !== null}
             onShowToast={showToast}
+            printSavedState={selectedNodeId ? printSavedStates[selectedNodeId] : undefined}
+            printThumbnail={selectedNodeId ? nodes.find(n => n.id === selectedNodeId)?.thumbnailData : undefined}
+            onPrintSidebarAction={handlePrintSidebarAction}
           />
         </div>
       )}

@@ -145,6 +145,35 @@ export const DISABLED_TAB_MESSAGE: Partial<Record<NodeType, string>> = {
   print:     '아트보드를 선택해 주세요',
 };
 
+/* ── Print 노드 연동 타입 ────────────────────────────────────── */
+export interface PrintSavedState {
+  html: string;
+  mode: 'REPORT' | 'PANEL' | 'DRAWING' | 'VIDEO';
+  prompt?: string;
+  savedAt: string;
+}
+
+export interface PrintSaveResult {
+  html: string;
+  thumbnail: string;
+  mode: 'REPORT' | 'PANEL' | 'DRAWING' | 'VIDEO';
+  metadata: Record<string, unknown>;
+}
+
+export interface SelectedImage {
+  id: string;
+  base64: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  filename?: string;
+}
+
+export const PRINT_IMAGE_LIMITS: Record<'REPORT' | 'PANEL' | 'DRAWING' | 'VIDEO', { min: number; max: number }> = {
+  REPORT:  { min: 1, max: 10 },
+  PANEL:   { min: 1, max: 6 },
+  DRAWING: { min: 1, max: 4 },
+  VIDEO:   { min: 2, max: 2 },
+};
+
 /* 캔버스 좌표(world) → 화면 좌표(screen) */
 export function toScreen(
   worldX: number,

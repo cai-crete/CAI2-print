@@ -1,0 +1,22 @@
+## 세션 19 — 2026-04-24
+
+### 방금 무엇을 했는지
+`docs/exec-plans/active/print-ui-fix-260424.md` 상의 **Fix 4** 및 **Fix 6** 구현을 완료했습니다.
+
+### 완료된 작업
+
+1. **Fix 4 — GlobalHeader 충돌 대응** ✅
+   - 파일: `project_canvas/app/globals.css`
+   - 작업: `[data-print-canvas] header { display: none !important; }` CSS 규칙을 추가하여, Canvas ExpandedView 진입 시 Print 패키지의 고유 헤더가 Canvas UI와 겹치는 현상을 방지했습니다.
+
+2. **Fix 6 — ExpandedView 사이드바 패널 스크롤 및 패딩 수정** ✅
+   - 파일: `project_canvas/components/ExpandedView.tsx`
+   - 작업: `renderSidebarWrapper` 내부에 `overflowY: 'auto'` 및 `padding: '1.25rem'`이 적용된 스크롤 컨테이너 박스를 새롭게 추가했습니다. 이로써 Print 사이드바 패널의 답답한 레이아웃을 해소하고 내용을 모두 스크롤하여 확인할 수 있게 되었습니다.
+
+3. **계획서 상태 업데이트** ✅
+   - 파일: `docs/exec-plans/active/print-ui-fix-260424.md`
+   - 작업: Fix 4, Fix 6 항목 상태를 `✅ 완료`로 변경했습니다.
+
+### 다음에 무엇을 해야 하는지
+- **Fix 5**: 우측 사이드바 내용 불일치 문제를 해결할 방향(선택지 A, B, C 중)에 대한 사용자 결정을 기다립니다.
+- **Fix 7-A**: 승인 시, 좌측 툴바 디자인을 캔버스 스타일에 맞춰서 재구성합니다.

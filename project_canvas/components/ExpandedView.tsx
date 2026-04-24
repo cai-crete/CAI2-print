@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { CanvasNode, NodeType, NODE_DEFINITIONS, ActiveTool, SketchPanelSettings, PlanPanelSettings } from '@/types/canvas';
+import { CanvasNode, NodeType, NODE_DEFINITIONS, ActiveTool, SketchPanelSettings, PlanPanelSettings, PrintSavedState, PrintSaveResult, SelectedImage } from '@/types/canvas';
 import LeftToolbar from '@/components/LeftToolbar';
 import ExpandedSidebar from '@/components/ExpandedSidebar';
 import SketchToImageExpandedView from '@/sketch-to-image/ExpandedView';
 import SketchToPlanExpandedView from '@/sketch-to-plan/ExpandedView';
+import { PrintExpandedView } from '@cai-crete/print-components';
+import type { PrintToolbarTools } from '@cai-crete/print-components';
+import type { ReactNode } from 'react';
 
 interface Props {
   node: CanvasNode;
@@ -30,6 +33,12 @@ interface Props {
   onGeneratePlanComplete?: (params: { sketchBase64: string; thumbnailBase64: string; generatedPlanBase64: string; roomAnalysis: string; nodeId: string }) => void;
   onGeneratingChange?: (v: boolean) => void;
   isGenerating?: boolean;
+  /* Print 전용 */
+  printSavedState?: PrintSavedState;
+  printInitialAction?: 'generate' | 'library' | 'video' | null;
+  selectedImages?: SelectedImage[];
+  onPrintSave?: (result: PrintSaveResult) => void;
+  onPrintDelete?: () => void;
 }
 
 /* ── SketchInfiniteGrid (sketch/blank 아트보드용) ───────────────── */
@@ -124,17 +133,192 @@ function SketchInfiniteGrid() {
 /* ══════════════════════════════════════════════════════════════════
    ExpandedView — 라우터: 노드 유형별 전용 뷰로 위임
 ══════════════════════════════════════════════════════════════════ */
+const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+const IconCollapse = () => <svg viewBox="0 0 20 20" {...IC}><path d="M16 10H4M9 5L4 10L9 15" /></svg>;
+
 export default function ExpandedView({
   node, onCollapse, onCollapseWithSketch, onCollapseWithPlanSketch, onGenerateError, onAbortControllerReady,
   activeTool, scale, canUndo, canRedo,
   onToolChange, onUndo, onRedo, onZoomIn, onZoomOut, onZoomReset,
   onAddArtboard, onGenerateComplete, onGeneratePlanComplete, onGeneratingChange,
   isGenerating = false,
+  printSavedState, printInitialAction, selectedImages,
+  onPrintSave, onPrintDelete,
 }: Props) {
   const def = NODE_DEFINITIONS[node.type];
   const isSketchImageMode = node.artboardType === 'sketch' && node.type === 'image';
   const isSketchPlanMode  = node.artboardType === 'sketch' && node.type === 'plan';
   const isSketchMode      = node.artboardType === 'sketch' || node.artboardType === 'blank';
+
+  /* ── Print 전용 뷰 ──────────────────────────────────────────────── */
+  if (node.type === 'print') {
+    const hoverOn  = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.currentTarget.style.backgroundColor = 'var(--color-gray-100)';
+      e.currentTarget.style.color = 'var(--color-black)';
+    };
+    const hoverOff = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.currentTarget.style.backgroundColor = 'transparent';
+      e.currentTarget.style.color = 'var(--color-gray-500)';
+    };
+    const pillBase: React.CSSProperties = {
+      background: 'var(--color-white)', borderRadius: 'var(--radius-pill)',
+      boxShadow: 'var(--shadow-float)',
+    };
+
+    return (
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--color-app-bg)' }}>
+        <PrintExpandedView
+          selectedImages={selectedImages}
+          savedState={printSavedState}
+          initialAction={printInitialAction ?? null}
+          apiBaseUrl="/api/print-proxy"
+          onSave={onPrintSave!}
+          onDelete={onPrintDelete}
+          renderToolbarWrapper={(tools: PrintToolbarTools) => {
+            const btnBase: React.CSSProperties = {
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '2.75rem', height: '2.75rem', border: 'none', background: 'transparent',
+              borderRadius: 'var(--radius-pill)', color: 'var(--color-gray-500)',
+              cursor: 'pointer', transition: 'background-color 100ms ease', flexShrink: 0,
+            };
+            const mkBtn = (onClick: () => void, icon: React.ReactNode, title: string, disabled = false) => (
+              <button
+                onClick={onClick} disabled={disabled} title={title}
+                style={{ ...btnBase, color: disabled ? 'var(--color-gray-300)' : 'var(--color-gray-500)', cursor: disabled ? 'not-allowed' : 'pointer' }}
+                onPointerEnter={e => { if (e.pointerType !== 'mouse') return; if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-100)'; }}
+                onPointerLeave={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; }}
+                onPointerDown={e => { if (e.pointerType !== 'mouse') return; if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-200)'; }}
+                onPointerUp={e => { if (e.pointerType !== 'mouse') return; if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gray-100)'; }}
+              >
+                <span className="icon-frame">{icon}</span>
+              </button>
+            );
+
+            return (
+            <div style={{
+              position: 'absolute', left: '1rem', top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: '0.5rem', zIndex: 90,
+            }}>
+              {/* 상단 CTA: New Project */}
+              <div style={{ position: 'absolute', bottom: 'calc(100% + 0.75rem)', left: '50%', transform: 'translateX(-50%)' }}>
+                <button
+                  onClick={tools.onNewProject}
+                  title="NEW PROJECT"
+                  style={{
+                    width: '3.5rem', height: '3.5rem', background: 'var(--color-black)', color: 'var(--color-white)',
+                    border: 'none', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: 'var(--shadow-float)', cursor: 'pointer', transition: 'opacity 120ms ease, transform 120ms ease',
+                  }}
+                  onPointerEnter={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.opacity = '0.8'; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
+                  onPointerLeave={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+                  onPointerDown={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'; }}
+                  onPointerUp={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
+                >
+                  <span style={{ width: 24, height: 24, display: 'flex' }}>
+                    <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3V17M3 10H17" /></svg>
+                  </span>
+                </button>
+              </div>
+
+              {/* Pill 묶음: undo / redo / library / saves / zoom */}
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: '2px', background: 'var(--color-white)',
+                borderRadius: 'var(--radius-pill)', padding: '6px',
+                boxShadow: 'var(--shadow-float)',
+              }}>
+                {mkBtn(tools.onUndo, <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7.5 12.5L2.5 7.5L7.5 2.5" /><path d="M2.5 7.5H12.5A5 5 0 0 1 12.5 17.5H10" /></svg>, 'Undo', !tools.canUndo)}
+                {mkBtn(tools.onRedo, <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12.5 12.5L17.5 7.5L12.5 2.5" /><path d="M17.5 7.5H7.5A5 5 0 0 0 7.5 17.5H10" /></svg>, 'Redo', !tools.canRedo)}
+                <div style={{ width: 'calc(100% - 12px)', height: 1, background: 'var(--color-gray-100)', margin: '2px 6px' }} />
+                {mkBtn(tools.onOpenLibrary, <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="16" height="12" rx="2" /><circle cx="7" cy="8.5" r="1.5" /><polyline points="2,14 6,10 9,13 12,10 18,15" /></svg>, 'Library')}
+                {mkBtn(tools.onOpenSaves, <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 7v10H3V7" /><path d="M19 3H1v4h18V3z" /><path d="M8 11h4" /></svg>, 'Saves')}
+                <div style={{ width: 'calc(100% - 12px)', height: 1, background: 'var(--color-gray-100)', margin: '2px 6px' }} />
+                {mkBtn(tools.onZoomIn, <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3V17M3 10H17" /></svg>, 'Zoom In')}
+                <button
+                  onClick={tools.onZoomReset}
+                  title="Zoom Reset"
+                  style={{
+                    ...btnBase, fontFamily: 'var(--font-family-pretendard)', fontSize: '0.7rem', fontWeight: 600,
+                    color: 'var(--color-gray-500)', height: '1.75rem', letterSpacing: 0,
+                  }}
+                  onPointerEnter={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'var(--color-gray-100)'; }}
+                  onPointerLeave={e => { if (e.pointerType !== 'mouse') return; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  {Math.round((tools.zoom ?? 1) * 100)}%
+                </button>
+                {mkBtn(tools.onZoomOut, <svg viewBox="0 0 20 20" stroke="currentColor" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10H17" /></svg>, 'Zoom Out')}
+              </div>
+
+              {/* 하단 분리된 원형 버튼: save */}
+              <div style={{ marginTop: '0.5rem' }}>
+                <button
+                  onClick={tools.onSave}
+                  title="SAVE"
+                  style={{
+                    width: '3.75rem', height: '3.75rem', borderRadius: '50%', background: 'var(--color-white)', color: 'var(--color-black)',
+                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: 'var(--shadow-float)', cursor: 'pointer', transition: 'opacity 120ms ease',
+                  }}
+                  onPointerEnter={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.opacity = '0.8'; }}
+                  onPointerLeave={e => { if (e.pointerType !== 'mouse') return; (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+                >
+                  <span className="icon-frame">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+            );
+          }}
+          renderSidebarWrapper={(printPanels: ReactNode) => (
+            <div style={{
+              position: 'absolute', right: '1rem', top: '1rem', bottom: '1rem',
+              width: 'var(--sidebar-w)', display: 'flex', flexDirection: 'column',
+              gap: '0.5rem', zIndex: 90,
+            }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch', flexShrink: 0 }}>
+                <div style={{ ...pillBase, width: 'var(--h-cta-lg)', height: 'var(--h-cta-lg)', flexShrink: 0 }}>
+                  <button
+                    onClick={onCollapse}
+                    title="캔버스로 돌아가기"
+                    style={{
+                      width: '100%', height: '100%', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', border: 'none', background: 'transparent',
+                      cursor: 'pointer', borderRadius: 'var(--radius-pill)',
+                      color: 'var(--color-gray-500)', transition: 'background-color 100ms ease, color 100ms ease',
+                    }}
+                    onMouseEnter={hoverOn}
+                    onMouseLeave={hoverOff}
+                  >
+                    <span style={{ width: 20, height: 20, display: 'flex' }}><IconCollapse /></span>
+                  </button>
+                </div>
+                <div style={{ ...pillBase, flex: 1, display: 'flex', alignItems: 'center', padding: '0 1rem' }}>
+                  <span className="text-title" style={{ color: 'var(--color-black)', letterSpacing: '0.04em' }}>
+                    PRINT
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                background: 'var(--color-white)', borderRadius: 'var(--radius-box)',
+                boxShadow: 'var(--shadow-float)', flex: 1, minHeight: 0,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}>
+                <div style={{
+                  flex: 1, overflowY: 'auto', padding: '1.25rem',
+                  display: 'flex', flexDirection: 'column',
+                }}>
+                  {printPanels}
+                </div>
+              </div>
+            </div>
+          )}
+        />
+      </div>
+    );
+  }
 
   /* ── sketch-to-image 전용 뷰 ────────────────────────────────────── */
   if (isSketchImageMode) {

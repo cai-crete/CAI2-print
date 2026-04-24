@@ -4,8 +4,9 @@ import { useState } from 'react';
 import {
   NodeType, NODE_DEFINITIONS, NODE_ORDER, ArtboardType,
   ARTBOARD_COMPATIBLE_NODES, NODES_NAVIGATE_DISABLED,
-  PANEL_CTA_MESSAGE, DISABLED_TAB_MESSAGE,
+  PANEL_CTA_MESSAGE, DISABLED_TAB_MESSAGE, PrintSavedState,
 } from '@/types/canvas';
+import { PrintSidebarPanel } from '@cai-crete/print-components';
 
 interface Props {
   activeSidebarNodeType: NodeType | null;
@@ -14,6 +15,10 @@ interface Props {
   onNavigateToExpand: (type: NodeType) => void;
   hasSelectedArtboard: boolean;
   onShowToast: (message: string, type?: 'warning' | 'success') => void;
+  /* Print 전용 */
+  printSavedState?: PrintSavedState;
+  printThumbnail?: string;
+  onPrintSidebarAction?: (action: 'generate' | 'library' | 'video') => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -89,6 +94,7 @@ export default function RightSidebar({
   activeSidebarNodeType, selectedArtboardType,
   onNodeTabSelect, onNavigateToExpand,
   hasSelectedArtboard, onShowToast,
+  printSavedState, printThumbnail, onPrintSidebarAction,
 }: Props) {
   const [accordionOpen, setAccordionOpen] = useState(true);
 
@@ -204,13 +210,22 @@ export default function RightSidebar({
         <div style={{
           background: 'var(--color-white)', borderRadius: 'var(--radius-box)',
           boxShadow: 'var(--shadow-float)', flex: 1, minHeight: 0, pointerEvents: 'all',
+          overflowY: 'auto',
         }}>
-          <NodePanel
-            type={activeSidebarNodeType!}
-            onGenerate={() => onNavigateToExpand(activeSidebarNodeType!)}
-            hasSelectedArtboard={hasSelectedArtboard}
-            onShowToast={onShowToast}
-          />
+          {activeSidebarNodeType === 'print' ? (
+            <PrintSidebarPanel
+              savedState={printSavedState}
+              thumbnail={printThumbnail}
+              onAction={onPrintSidebarAction ?? (() => {})}
+            />
+          ) : (
+            <NodePanel
+              type={activeSidebarNodeType!}
+              onGenerate={() => onNavigateToExpand(activeSidebarNodeType!)}
+              hasSelectedArtboard={hasSelectedArtboard}
+              onShowToast={onShowToast}
+            />
+          )}
         </div>
       </div>
     );

@@ -1,0 +1,65 @@
+## 세션 17 — 2026-04-24
+
+### 방금 무엇을 했는지
+Print 노드 Canvas 통합 버그 2개 수정:
+- Issue 1: RightSidebar에 PrintSidebarPanel 표시 안 됨
+- Issue 2: Expand 뷰 레이아웃 깨짐 (ToolbarCircleButton 스타일 + CSS 변수 누락)
+
+### 완료된 작업
+
+**Issue 1 — RightSidebar Print 패널 미표시:**
+- `project_canvas/app/page.tsx`
+  - `handleNodeCardSelect`: thumbnail 아트보드 클릭 시 `'planners'` 하드코딩 → `node.type` 으로 수정
+    (Print 노드 클릭 시 activeSidebarNodeType이 'print'로 올바르게 설정됨)
+  - `handleReturnFromExpand`: Print 노드는 collapse 시 hasThumbnail 변경하지 않도록 수정
+    (handlePrintSave/handlePrintDelete가 상태 관리함)
+  - `handlePrintSidebarAction` 추가: 사이드바 액션(generate/library/video) → printInitialAction 설정 + expand 진입
+  - `<RightSidebar>` props 추가: printSavedState, printThumbnail, onPrintSidebarAction
+- `project_canvas/components/RightSidebar.tsx`
+  - `PrintSidebarPanel` import from `@cai-crete/print-components`
+  - `PrintSavedState` import from `@/types/canvas`
+  - Props interface에 printSavedState?, printThumbnail?, onPrintSidebarAction? 추가
+  - 패널 본문: activeSidebarNodeType === 'print' → PrintSidebarPanel 렌더링 (savedState + thumbnail + onAction)
+  - 기존 NodePanel은 print 외 모든 타입에 그대로 유지
+
+**Issue 2 — Expand 뷰 레이아웃 수정:**
+- `project_canvas/app/globals.css`
+  - Print 패키지가 참조하는 CSS 변수 추가:
+    --z-system: 5 (Print GlobalHeader → Canvas 헤더 z-10 아래)
+    --z-canvas: 2 (Print Canvas 영역)
+    --z-control: 50 (Print 컨트롤)
+    --z-modal: 200 (LibraryModal / SavesModal)
+    --gap-global, --color-doc-bg, --color-border, --color-text-caption, --color-focus
+- `project_canvas/components/ExpandedView.tsx`
+  - renderToolbarWrapper: 단순 column → pill 컨테이너 + save 원형 버튼 분리
+    (Canvas LeftToolbar 스타일과 동일: 흰 배경 pill + 분리된 원형 save 버튼)
+  - renderSidebarWrapper 패널 본문: overflowY: auto → display: flex; flexDirection: column; overflow: hidden
+    (h-full이 정확한 부모 높이를 참조하여 ActionButtons가 하단 고정됨)
+
+### 어디까지 완료됐는가
+
+| 항목 | 상태 |
+|------|------|
+| 환경 설정 (.npmrc, .env.local, next.config.ts, layout.tsx) | ✅ 완료 |
+| 프록시 라우트 (print-proxy) | ✅ 완료 |
+| 타입 추가 (PrintSavedState 등) | ✅ 완료 |
+| PrintExpandedView 마운트 + 레이아웃 수정 | ✅ 완료 |
+| Print 상태 관리 (page.tsx) | ✅ 완료 |
+| RightSidebar PrintSidebarPanel | ✅ 완료 |
+| CSS 변수 추가 (--z-system 등) | ✅ 완료 |
+| TypeScript 오류 없음 (tsc --noEmit) | ✅ 확인 |
+| dev 서버 기동 및 브라우저 동작 확인 | ⏸️ 사용자 확인 대기 |
+| npm run build | ⏸️ sketch-to-image 기존 오류로 보류 |
+
+### 다음에 무엇을 해야 하는지
+1. localhost:3900에서 동작 확인:
+   - Print 노드 카드 클릭 → RightSidebar에 PrintSidebarPanel 표시 확인
+     (썸네일 영역 + 생성하기/라이브러리/영상만들기 버튼)
+   - "생성하기" 클릭 → expand 진입 + PrintExpandedView 렌더링 확인
+     (좌측: 흰 pill 툴바 + 분리된 save 원형 버튼, 우측: PRINT 헤더 + 사이드바)
+   - Generate 후 저장 → 캔버스 복귀 시 썸네일 확인
+2. npm run build: sketch-to-image/ExpandedView.tsx 오류 별도 수정 (사용자 지시 시)
+
+---
+
+COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.

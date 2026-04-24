@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Bebas_Neue } from 'next/font/google';
 import './globals.css';
+import '@cai-crete/print-components/styles/print-tokens.css';
 
 const bebas = Bebas_Neue({
   weight: '400',

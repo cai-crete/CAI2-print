@@ -1,70 +1,72 @@
-## 세션 15 — 2026-04-24
+## 세션 16 — 2026-04-24
 
 ### 방금 무엇을 했는지
-sketch-to-plan 이식 완료. cai-sketch-to-plan-v2 앱을 cai-canvas-v2에 이식했습니다.
-sketch-to-image 패턴을 그대로 따라 7개 파일 신규 생성 + 4개 파일 수정.
+Print 노드 → Canvas 통합 작업 완료 (원격 브랜치 병합 후 재적용).
+
+origin/main에 sketch-to-plan 통합 커밋 2개가 새로 올라와 있었음.
+git stash → pull → 수동 재적용 방식으로 충돌 없이 병합.
 
 ### 완료된 작업
 
-**신규 파일 생성:**
-- `sketch-to-plan/_context/protocol-sketch-to-plan-v3.8.txt` ✅ (이전 세션)
-- `sketch-to-plan/_context/knowledge-architectural-standards.txt` ✅ (이전 세션)
-- `sketch-to-plan/_context/knowledge-template-a.txt` ✅ (이전 세션)
-- `sketch-to-plan/_context/knowledge-wp-grid-mapping.txt` ✅ (이전 세션)
-- `sketch-to-plan/ExpandedView.tsx` ✅
-  - 좌측 툴바: 업로드/cursor/pan/pen(StrokePanel)/eraser(StrokePanel)/text/undo/redo/zoom — STI와 동일
-  - 우측 패널: Prompt → Building Type(9종 dropdown) → Grid Module(slider 6단계) → Parameter Report → GENERATE(하단 고정)
-  - Generate: 즉시 캔버스 복귀 → 백그라운드 생성 → onGeneratePlanComplete 콜백
-  - 결과 노드 expand 시 node.roomAnalysis를 Parameter Report에 표시
-- `hooks/usePlanGeneration.ts` ✅
-  - POST /api/sketch-to-plan 호출
-  - 반환: { image: string | null, roomAnalysis: string }
-- `app/api/sketch-to-plan/route.ts` ✅
-  - 모델: gemini-3.1-pro-preview (분석) / gemini-3.1-flash-image-preview (이미지 생성)
-  - 폴백: gemini-2.5-pro-preview / gemini-2.5-flash-image
-  - 2단계 파이프라인: 공간 분석 → CAD 평면도 이미지 생성
-  - 반환: { generated_plan_image, room_analysis, analysis_spec }
-  - GEMINI_API_KEY 재사용 (기존 .env.local 키)
+**환경 설정 (Phase 1):**
+- `project_canvas/.npmrc` ✅ — GitHub Packages 레지스트리 설정
+- `project_canvas/.env.local` ✅ — PRINT_API_URL, CANVAS_API_SECRET, GITHUB_TOKEN
+- `project_canvas/next.config.ts` ✅ — transpilePackages + webpack alias(Print 패키지) + dev cache disable 병합
+- `project_canvas/tsconfig.json` ✅ — Print 패키지 @/ path 오버라이드 (TypeScript 타입 체크용)
+- `project_canvas/app/layout.tsx` ✅ — print-tokens.css import 추가
 
-**수정 파일:**
-- `types/canvas.ts` ✅ — PlanPanelSettings 인터페이스, CanvasNode에 planPanelSettings/roomAnalysis 추가
-- `lib/prompt.ts` ✅ — sketch-to-plan/_context/ 경로를 후보 배열에 추가
-- `components/ExpandedView.tsx` ✅ — isSketchPlanMode 라우팅 + 새 props 추가
-- `app/page.tsx` ✅
-  - handleReturnFromExpand: isSketchPlan 예외 추가 (artboardType 자동 변환 방지)
-  - handleCollapseWithPlanSketch: 스케치 + planPanelSettings 저장
-  - handleGeneratePlanComplete: 새 plan 노드 생성 (artboardType:'sketch', roomAnalysis 포함) + 엣지 연결
+**프록시 라우트 (Phase 2):**
+- `project_canvas/app/api/print-proxy/[...path]/route.ts` ✅
+  - 모든 HTTP 메서드 지원 (GET/POST/PUT/DELETE/OPTIONS)
+  - x-canvas-api-secret 헤더 자동 첨부
+  - maxDuration = 60 (AI 생성 시간 대응)
 
-**이전 세션 수정 사항:**
-- STI 이슈 1: `lib/prompt.ts` → `sketch-to-image/_context/` 를 우선 탐색, 없으면 `_context/` 로 폴백
-- STI 이슈 2: EXPAND 버튼 조건 → `isSelected && artboardType !== 'blank'`로 변경
+**타입 추가 (Phase 3):**
+- `project_canvas/types/canvas.ts` ✅
+  - PrintSavedState, PrintSaveResult, SelectedImage 인터페이스 추가
+  - PRINT_IMAGE_LIMITS 상수 추가 (REPORT/PANEL/DRAWING/VIDEO별 min/max)
 
-**문서:**
-- `exec-plans/active/sketch-to-plan-port-260423.md` → completed/ 이동 ✅
-- `exec-plans/active/fix-sti-error-and-expand-button-260423.md` → completed/ 이동 ✅
+**PrintExpandedView 마운트 (Phase 4):**
+- `project_canvas/components/ExpandedView.tsx` ✅
+  - Print 관련 props 추가 (printSavedState, printInitialAction, selectedImages, onPrintSave, onPrintDelete)
+  - `node.type === 'print'` 브랜치 추가 → PrintExpandedView 렌더링
+  - renderToolbarWrapper: undo/redo/divider/library/saves/save 순서 배치
+  - renderSidebarWrapper: 접기 버튼 + PRINT 헤더 + 패널 본문
+  - 기존 sketch-to-image, sketch-to-plan 라우팅 유지
 
----
+**Print 상태 관리 (Phase 5):**
+- `project_canvas/app/page.tsx` ✅
+  - PrintSavedState, PrintSaveResult, SelectedImage import 추가
+  - printSavedStates, printInitialAction, selectedImages state 추가
+  - handlePrintSave: 저장 결과 → printSavedStates + 노드 thumbnailData 업데이트
+  - handlePrintDelete: 저장 상태 삭제 + 노드 썸네일 초기화 + expand 닫기
+  - handleReturnFromExpand: printInitialAction/selectedImages 초기화 추가
+  - deleteNode: printSavedStates 정리 추가
+  - ExpandedView에 모든 Print props 연결
+
+**RightSidebar.tsx**: 원격 버전 그대로 유지 (Print는 onNavigateToExpand로 바로 expand 진입)
 
 ### 어디까지 완료됐는가
 
 | 항목 | 상태 |
 |------|------|
-| sketch-to-plan 이식 코드 작업 | ✅ 완료 |
-| STI Generate 500 오류 수정 | ✅ 완료 |
-| EXPAND 버튼 조건 변경 | ✅ 완료 |
-| `.env.local` 생성 | ⏸️ 보류 (GEMINI_API_KEY 미수령) |
-| 브라우저 검증 | ⏸️ `.env.local` 설정 후 진행 |
-
----
+| 환경 설정 (.npmrc, .env.local, next.config.ts, layout.tsx) | ✅ 완료 |
+| 프록시 라우트 (print-proxy) | ✅ 완료 |
+| 타입 추가 (PrintSavedState 등) | ✅ 완료 |
+| PrintExpandedView 마운트 | ✅ 완료 |
+| Print 상태 관리 (page.tsx) | ✅ 완료 |
+| dev 서버 기동 (`npm run dev`) | ✅ 컴파일 오류 없음 |
+| 브라우저 동작 확인 | ⏸️ 사용자 확인 대기 |
+| npm run build 성공 | ⏸️ sketch-to-image/ExpandedView.tsx 기존 오류로 보류 |
 
 ### 다음에 무엇을 해야 하는지
-1. 개발 서버 실행 후 기능 동작 확인:
-   - 빈 아트보드 선택 → 우측 PLAN 탭 클릭 → ExpandedView 열림 확인
-   - 스케치 후 GENERATE 클릭 → 즉시 캔버스 복귀 확인
-   - 생성 완료 후 새 plan 노드 생성 확인 (엣지 포함)
-   - result 노드 expand → Parameter Report에 room_analysis 표시 확인
-2. API 오류 발생 시 모델명 확인 (gemini-3.1 계열 가용 여부)
-3. GEMINI_API_KEY 수령 시 `project_canvas/.env.local` 생성
+1. localhost:3900에서 Print 노드 동작 확인:
+   - 빈 아트보드 선택 → 우측 PRINT 탭 클릭 → expand 진입 확인
+   - PrintExpandedView 렌더링 (좌측 툴바 5개 버튼, 우측 사이드바)
+   - Generate / Library 클릭 → Print API 연동 확인 (/api/print-proxy)
+   - 저장 후 캔버스 복귀 → 썸네일 표시 확인
+2. npm run build: sketch-to-image/ExpandedView.tsx의 SketchPanelSettings 오류 별도 수정 필요 (사용자 지시 시)
+3. 다중 이미지 선택 → Print 실행 플로우 (Phase 6, 사용자 지시 시)
 
 ---
 

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../node_modules/@cai-crete/print-components";
 
 /* ==========================================================================
    CAI CANVAS — 디자인 토큰
@@ -43,6 +44,19 @@
   --space-2: 1rem;     /* 16px */
   --space-3: 1.25rem;  /* 20px */
   --space-4: 2rem;     /* 32px */
+
+  /* ── Print 패키지 통합용 CSS 변수 ────────────────────────────────────── */
+  --z-system:  5;    /* Print GlobalHeader (Canvas 헤더 z-10 아래) */
+  --z-canvas:  2;    /* Print Canvas 영역 */
+  --z-control: 50;   /* Print 컨트롤 */
+  --z-modal:   200;  /* Print LibraryModal / SavesModal */
+  --gap-global:       1rem;
+  --color-doc-bg:     var(--color-white);
+  --color-border:     var(--color-gray-200);
+  --color-text-caption: var(--color-gray-400);
+  --color-focus:      var(--color-black);
+  --sidebar-spacing:  calc(var(--sidebar-w) + 2rem);  /* Print Canvas 우측 여백 */
+  --color-text-primary: var(--color-black);            /* Print ActionButtons 드롭다운 텍스트 */
 }
 
 /* ── 전역 리셋 ─────────────────────────────────────────────────────────── */
@@ -69,6 +83,12 @@ html, body {
 .text-subtitle { font-family: var(--font-family-bebas); font-size: 0.875rem; line-height: 1;   letter-spacing: 0.03em; }
 .text-body-3   { font-family: var(--font-family-pretendard); font-size: 0.875rem; line-height: 1.4; }
 .text-caption  { font-family: var(--font-family-pretendard); font-size: 0.75rem;  line-height: 1.2; }
+
+/* Print 패키지 호환 커스텀 유틸리티 */
+.text-ui-title   { font-family: var(--font-family-bebas); font-size: 1rem; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
+.font-pretendard { font-family: var(--font-family-pretendard); }
+[data-print-canvas] header { display: none !important; }
+.print-save-wrapper button { border: none !important; }
 
 /* 아이콘 컨테이너 (§A.9) */
 .icon-frame {

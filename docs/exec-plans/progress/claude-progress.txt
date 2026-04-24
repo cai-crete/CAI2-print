@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 ## Claude Progress Log — 2026-04-24 (세션 14)
+=======
+## Claude Progress Log — 2026-04-23 (세션 13)
+>>>>>>> 0d024efecb16e676942e0593cffeaa407d521905
 
 ---
 
 ### 방금 무엇을 했는가
 
+<<<<<<< HEAD
 **작업 1: project_node/ 디렉토리 제거**
 
 - `project_node/_context/` 3개 파일(`brand-guidelines.md`, `business-context.md`, `design-style-guide-node.md`)이
@@ -16,11 +21,24 @@
 - `fix-sti-error-and-expand-button-260423.md` 미완료 체크리스트에 보류 표기 추가
   (브라우저 검증 3개 항목 → `.env.local` 설정 후 검증 예정)
 - `active/` → `completed/Frontend/` 이동 완료
+=======
+**이슈 1: sketch-to-image Generate 500 오류 수정**
+
+- 원인: `lib/prompt.ts` → `loadProtocolFile()`이 `process.cwd()/_context/` 에서 파일을 찾지만,
+  프로토콜 파일이 `sketch-to-image/_context/` 로 이동되어 경로 불일치 발생
+- 수정: `sketch-to-image/_context/` 를 우선 탐색, 없으면 `_context/` 로 폴백하는 로직으로 변경
+
+**이슈 2: EXPAND 버튼 조건 변경**
+
+- 기존: `isSelected && artboardType === 'image'` → image 아트보드에만 EXPAND 표시
+- 변경: `isSelected && artboardType !== 'blank'` → blank(처음 생성 아트보드) 제외 모든 아이템에 표시
+>>>>>>> 0d024efecb16e676942e0593cffeaa407d521905
 
 ---
 
 ### 어디까지 완료됐는가
 
+<<<<<<< HEAD
 | 항목 | 상태 |
 |------|------|
 | `project_node/` 삭제 | ✅ 완료 |
@@ -38,6 +56,25 @@
 3. EXPAND 버튼 표시 조건 브라우저 검증 (blank 외 노드 → 표시, blank → 미표시)
 4. `middle-button-panning.md` 구현 (보류 해제 시)
 
+=======
+**수정 파일:**
+| 파일 | 변경 내용 |
+|------|-----------|
+| `project_canvas/lib/prompt.ts` | `loadProtocolFile`: 후보 경로 배열 탐색 (sketch-to-image/_context → _context 폴백) |
+| `project_canvas/components/NodeCard.tsx` | EXPAND 버튼 조건: `artboardType === 'image'` → `artboardType !== 'blank'` |
+
+**exec-plan:** `active/fix-sti-error-and-expand-button-260423.md` — 코드 수정 완료, 브라우저 검증 대기
+
+---
+
+### 다음에 무엇을 해야 하는가
+
+1. 개발 서버 재시작 후 SKETCH 노드 → Generate 클릭 → 500 오류 해소 확인
+2. blank 외 노드(SKETCH, IMAGE, 기타) 선택 시 EXPAND 버튼 표시 확인
+3. blank 노드 선택 시 EXPAND 버튼 미표시 확인
+4. 확인 완료 후 exec-plan → completed/ 이동
+
+>>>>>>> 0d024efecb16e676942e0593cffeaa407d521905
 ---
 
 COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.

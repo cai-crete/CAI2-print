@@ -6,7 +6,8 @@ import {
   ARTBOARD_COMPATIBLE_NODES, NODES_NAVIGATE_DISABLED,
   PANEL_CTA_MESSAGE, DISABLED_TAB_MESSAGE, PrintSavedState,
 } from '@/types/canvas';
-import { PrintSidebarPanel } from '@cai-crete/print-components';
+import { PrintCanvasSidebarPanel } from '@cai-crete/print-components';
+import type { PrintDraftState } from '@cai-crete/print-components';
 
 interface Props {
   activeSidebarNodeType: NodeType | null;
@@ -18,7 +19,7 @@ interface Props {
   /* Print 전용 */
   printSavedState?: PrintSavedState;
   printThumbnail?: string;
-  onPrintSidebarAction?: (action: 'generate' | 'library' | 'video') => void;
+  onPrintSidebarAction?: (action: 'generate' | 'export' | 'saves', draft: PrintDraftState) => void;
 }
 
 const IC = { stroke: 'currentColor', fill: 'none', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -213,10 +214,10 @@ export default function RightSidebar({
           overflowY: 'auto',
         }}>
           {activeSidebarNodeType === 'print' ? (
-            <PrintSidebarPanel
+            <PrintCanvasSidebarPanel
               savedState={printSavedState}
               thumbnail={printThumbnail}
-              onAction={onPrintSidebarAction ?? (() => {})}
+              onAction={(action, draft) => onPrintSidebarAction?.(action, draft)}
             />
           ) : (
             <NodePanel

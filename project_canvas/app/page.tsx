@@ -10,6 +10,7 @@ import {
   PrintSavedState, PrintSaveResult, SelectedImage,
 } from '@/types/canvas';
 import { placeNewChild } from '@/lib/autoLayout';
+import type { PrintDraftState } from '@cai-crete/print-components';
 import InfiniteCanvas    from '@/components/InfiniteCanvas';
 import LeftToolbar       from '@/components/LeftToolbar';
 import RightSidebar      from '@/components/RightSidebar';
@@ -121,7 +122,8 @@ export default function CanvasPage() {
 
   /* ── Print 상태 ──────────────────────────────────────────────────── */
   const [printSavedStates,   setPrintSavedStates]   = useState<Record<string, PrintSavedState>>({});
-  const [printInitialAction, setPrintInitialAction] = useState<'generate' | 'library' | 'video' | null>(null);
+  const [printInitialAction, setPrintInitialAction] = useState<'generate' | 'library' | 'export' | 'video' | null>(null);
+  const [printDraftState,    setPrintDraftState]    = useState<PrintDraftState | null>(null);
   const [selectedImages,     setSelectedImages]     = useState<SelectedImage[]>([]);
 
   /* ── Toast 시스템 ─────────────────────────────────────────────── */
@@ -361,6 +363,7 @@ export default function CanvasPage() {
       });
     }
     setPrintInitialAction(null);
+    setPrintDraftState(null);
     setSelectedImages([]);
     setExpandedNodeId(null);
   }, [expandedNodeId, nodes, historyIndex]);
@@ -401,9 +404,10 @@ export default function CanvasPage() {
     setExpandedNodeId(null);
   }, [expandedNodeId]);
 
-  /* ── Print 사이드바 액션 (생성하기 / 라이브러리 / 영상만들기) ──────── */
-  const handlePrintSidebarAction = useCallback((action: 'generate' | 'library' | 'video') => {
-    setPrintInitialAction(action);
+  /* ── Print 사이드바 액션 (generate / export / saves) ──────────── */
+  const handlePrintSidebarAction = useCallback((action: 'generate' | 'export' | 'saves', draft: PrintDraftState) => {
+    setPrintDraftState(draft);
+    setPrintInitialAction(action === 'saves' ? 'library' : action);
     if (selectedNodeId) {
       setExpandedNodeId(selectedNodeId);
       setActiveSidebarNodeType(null);
@@ -808,6 +812,7 @@ export default function CanvasPage() {
           isGenerating={isGenerating}
           printSavedState={expandedNode ? printSavedStates[expandedNode.id] : undefined}
           printInitialAction={printInitialAction}
+          printDraftState={printDraftState}
           selectedImages={selectedImages}
           onPrintSave={handlePrintSave}
           onPrintDelete={handlePrintDelete}

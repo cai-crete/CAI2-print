@@ -1,0 +1,46 @@
+## 세션 22 — 2026-04-24
+
+### 방금 무엇을 했는지
+Phase C (ImageThumbnail 수정 + 프리뷰 바 미표시 수정)를 완료했습니다.
+그 전에 `file:` 링크 전환 작업을 먼저 수행했습니다.
+
+### 완료된 작업
+
+1. **file: 링크 전환** ✅
+   - `project_canvas/package.json`: `"@cai-crete/print-components": "^0.1.0"` → `"file:../../cai-harness-print/project.10_print"`
+   - `npm install` 실행 → `node_modules/@cai-crete/print-components`가 소스 디렉토리의 심볼릭 링크로 전환
+   - 이제 Print 소스 수정 → Canvas에 즉시 반영 (재설치 불필요)
+
+2. **C-1: ImageThumbnail 썸네일 깨짐 수정** ✅
+   - 파일: `cai-harness-print/project.10_print/app/components/sidebar/ImageInsert.tsx`
+   - `useMemo(() => URL.createObjectURL(file), [...])` 제거
+   - `useState<string | null>(null)` + `useEffect`로 교체 (VideoSlot과 동일 패턴)
+   - `img src={url ?? ''}` — null 안전 처리
+   - `useMemo` import 제거
+   - 패키지는 심볼릭 링크이므로 별도 수정 불필요
+
+3. **C-2: 프리뷰 바 미표시 CSS 변수 추가** ✅
+   - 파일: `project_canvas/app/globals.css` `:root` 블록
+   - `--preview-h: 10rem` 추가 (PreviewStrip 높이)
+   - `--z-preview: 20` 추가 (PreviewStrip z-index)
+   - 기존에 이 변수들이 없어 `height: auto`, `z-index: auto`로 렌더링되어 바가 보이지 않았음
+
+4. **tsc --noEmit** ✅ — 에러 0개
+
+### 현재 아키텍처
+
+```
+cai-harness-print/project.10_print/  (소스 원본)
+    ↑ symlink
+project_canvas/node_modules/@cai-crete/print-components/
+```
+소스 수정 → Canvas 즉시 반영. publish 사이클 불필요.
+
+### 다음에 무엇을 해야 하는지
+
+수동 확인 필요:
+- **C-2b**: Canvas에서 실제 generate 실행 후 하단 프리뷰 바 표시 여부 확인
+  - 여전히 미표시 시: `splitHtmlPages()` 파싱 실패 가능성 → 디버그 로그 추가 필요
+
+대기 중 (사용자 판단):
+- **Phase D-1**: Canvas RightSidebar ↔ ExpandedView 사이드바 불일치 처리 방향 결정

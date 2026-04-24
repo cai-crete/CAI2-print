@@ -256,7 +256,7 @@ export default function NodeCard({
           /* 기타 아트보드 썸네일 */
           node.thumbnailData ? (
             <img
-              src={`data:image/png;base64,${node.thumbnailData}`}
+              src={node.thumbnailData.startsWith('data:') ? node.thumbnailData : `data:image/png;base64,${node.thumbnailData}`}
               alt={def.displayLabel}
               style={{
                 position: 'absolute', inset: 0,

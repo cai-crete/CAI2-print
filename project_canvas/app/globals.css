@@ -57,6 +57,9 @@
   --color-focus:      var(--color-black);
   --sidebar-spacing:  calc(var(--sidebar-w) + 2rem);  /* Print Canvas 우측 여백 */
   --color-text-primary: var(--color-black);            /* Print ActionButtons 드롭다운 텍스트 */
+  --color-placeholder: #F8F8F8;                        /* Print ImageInsert 슬롯 배경 */
+  --preview-h: 10rem;                                  /* Print PreviewStrip 높이 */
+  --z-preview: 20;                                     /* Print PreviewStrip z-index */
 }
 
 /* ── 전역 리셋 ─────────────────────────────────────────────────────────── */

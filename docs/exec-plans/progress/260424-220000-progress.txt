@@ -1,0 +1,42 @@
+## 진행 상황 — 2026-04-24 22:00
+
+### 방금 완료한 작업
+Print 노드 내부 Saves(아카이빙) 기능 완전 제거 (exec-plan-print-remove-saves-2026-04-24.md 실행 완료)
+
+**삭제된 파일:**
+- project.10_print/app/components/modals/SavesModal.tsx
+- project.10_print/lib/saves.ts
+
+**수정된 파일:**
+1. project.10_print/components/Print_ExpandedView.tsx
+   - import 제거: SavesModal, SavedDocument, savesGet/savesSave/savesDelete, extractTitle
+   - state 제거: isSavesOpen, savedDocuments, currentDocId
+   - handler 제거: handleOpenSaves, handleSavesOpen, handleSavesDelete
+   - useEffect 제거: mount 시 savesGet() 호출 Effect
+   - handleSave: Standalone 분기 전체 제거, Canvas props.onSave 호출만 유지
+   - renderToolbarWrapper / <Toolbar> 호출에서 onOpenSaves 제거
+   - JSX: <SavesModal .../> 블록 제거
+
+2. project.10_print/app/components/layout/Toolbar.tsx
+   - ToolbarProps에서 onOpenSaves 제거
+   - 함수 파라미터에서 onOpenSaves 제거
+   - SAVES 버튼 JSX 블록 제거
+
+3. project.10_print/lib/types.ts
+   - SavedDocument 인터페이스 제거
+   - PrintAppState.isSavesOpen 제거
+
+4. project.10_print/types/print-canvas.ts
+   - PrintToolbarTools.onOpenSaves 제거
+
+5. project_canvas/components/ExpandedView.tsx (Canvas 부모)
+   - tools.onOpenSaves mkBtn 라인 제거
+
+**검증:**
+- `npx tsc --noEmit` 오류 없음 (Canvas project_canvas)
+- node_modules/@cai-crete/print-components는 Windows junction으로 소스와 동일 위치 — 별도 동기화 불필요
+- props.onSave 페이로드 구조 유지 확인: { html, thumbnail, mode, metadata }
+
+### 다음에 해야 할 것
+- docs/exec-plans/active/phase-d-sidebar-transplant-260424.md 계획 확인 및 실행 (Phase D 사이드바 이식)
+- 로컬 서버에서 툴바 렌더링 정상 여부 및 Canvas Save 기능 동작 수동 테스트 권장

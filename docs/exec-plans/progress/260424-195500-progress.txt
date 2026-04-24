@@ -1,0 +1,45 @@
+## 세션 22 후속 — 2026-04-24
+
+### 방금 무엇을 했는지
+사용자 검증 후 발견된 두 가지 버그를 수정했습니다:
+1. NodeCard 썸네일 미표시 (data URL prefix 이중 적용)
+2. ExpandedView 재진입 시 생성 문서 유실 (savedState 미복원)
+
+### 완료된 작업
+
+1. **NodeCard 썸네일 data URL 이중 prefix 수정** ✅
+   - 파일: `project_canvas/components/NodeCard.tsx`
+   - `generateThumbnail`은 `data:image/jpeg;base64,...` (완전한 data URL) 반환
+   - 기존 코드: `src={data:image/png;base64,${node.thumbnailData}}` → 이중 prefix 문제
+   - 수정: `thumbnailData.startsWith('data:')` 검사 후 prefix 조건부 추가
+   - 기존 sketch/plan 썸네일(raw base64)과 하위 호환 유지
+
+2. **PrintExpandedView savedState 복원 로직 추가** ✅
+   - 파일: `cai-harness-print/project.10_print/components/Print_ExpandedView.tsx`
+   - `props.savedState`가 전달되어도 컴포넌트 내에서 전혀 사용되지 않았음 (근본 원인)
+   - mount 시 한 번 실행되는 useEffect 추가:
+     - `setMode(props.savedState.mode)` — 이전 모드 복원
+     - `setResult({ html, executionLog: {}, slotMapping: {}, masterData: {} })` — HTML 복원
+     - `setPrompt(props.savedState.prompt)` — 프롬프트 복원 (있을 경우)
+
+3. **img src="" 경고 수정** ✅ (이전 커밋 후속)
+   - `ImageThumbnail` 컴포넌트: `{url && <img src={url} .../>}` 조건부 렌더링
+
+4. **tsc --noEmit** ✅ — 에러 0개
+
+### 현재 아키텍처 요약
+
+| 문제 | 파일 | 수정 내용 |
+|------|------|------|
+| 썸네일 미표시 | `NodeCard.tsx` | data URL prefix 조건부 적용 |
+| 문서 유실 | `Print_ExpandedView.tsx` | mount 시 savedState → result 복원 |
+| img src="" | `ImageInsert.tsx` | url null 시 img 미렌더링 |
+
+### 다음에 무엇을 해야 하는지
+
+수동 확인 필요:
+- NodeCard에 실제 썸네일 이미지 표시 여부
+- ExpandedView 재진입 시 생성 문서 복원 여부
+
+대기 중 (사용자 판단):
+- **Phase D-1**: Canvas RightSidebar ↔ ExpandedView 사이드바 불일치 처리

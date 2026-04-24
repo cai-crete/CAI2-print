@@ -1,0 +1,45 @@
+## 세션 23 — 2026-04-24
+
+### 방금 무엇을 했는지
+생성된 문서에서 이미지가 깨져 보이는 문제를 수정했습니다.
+
+### 완료된 작업
+
+1. **이미지 후처리 강화** ✅
+   - 파일: `cai-harness-print/project.10_print/app/api/print/route.ts`
+   - 원인 분석:
+     - AGENT-2-P2가 `src='img_0'` (작은따옴표) 사용 시 기존 치환 코드가 누락
+     - AGENT-2-P2가 `img-box` div 안에 `<img>` 태그 자체를 넣지 않는 경우 치환이 전혀 작동하지 않음
+   - 수정 내용:
+     - **Step 1 강화**: 큰따옴표 `src="img_0"` + 작은따옴표 `src='img_0'` 모두 처리
+     - **Step 2 폴백 추가**: `img-box` div 안에 `<img>`가 없는 슬롯에 이미지를 순서대로 자동 주입
+     - **디버그 로그 추가**: `[print-api] images:N, src-replacements:N`, `[print-api] fallback-injected:N`
+   - **tsc --noEmit** ✅ — 에러 0개
+
+2. **폴백 로직 상세**
+   - `/<div([^>]*class="[^"]*img-box[^"]*"[^>]*)>\s*<\/div>/g` 패턴으로 빈 img-box div 탐지
+   - 업로드된 이미지를 순서대로 (fallbackIdx 0, 1, 2, ...) 주입
+   - 주입 수(fallbackIdx)를 콘솔에 로그 → 진단 가능
+
+### 서버 콘솔에서 확인 방법
+Print 서버(포트 3777) 터미널에서 생성 후 다음 로그를 확인:
+- `src-replacements:N` — N > 0이면 src 치환이 작동한 것
+- `fallback-injected:N` — N > 0이면 폴백이 발동된 것 (AI가 <img> 태그를 안 만든 경우)
+
+### 현재 아키텍처 요약
+
+| 단계 | 처리 내용 |
+|------|----------|
+| Step 1 | `src="imgId"` 또는 `src='imgId'` → `src="data:..."` 치환 |
+| Step 2 | 빈 `img-box` div → `<img src="data:...">` 주입 (폴백) |
+
+### 다음에 무엇을 해야 하는지
+
+수동 확인 필요:
+- 다시 생성해서 이미지가 문서 내에 제대로 보이는지 확인
+- Print 서버 터미널에서 `src-replacements` vs `fallback-injected` 로그 확인
+  - `fallback-injected`가 계속 발동된다면: AI 프롬프트 강화 필요
+  - 둘 다 0이라면: 다른 원인 (proxy, CSP 등) 조사 필요
+
+대기 중 (사용자 판단):
+- **Phase D-1**: Canvas RightSidebar ↔ ExpandedView 사이드바 불일치 처리

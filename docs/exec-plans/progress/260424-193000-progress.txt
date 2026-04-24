@@ -1,0 +1,43 @@
+## 세션 21 — 2026-04-24
+
+### 방금 무엇을 했는지
+Antigravity 세션(`b5f1ca2c`)의 최종 지시 후속 작업을 완료했습니다.
+미완이었던 **브라우저 콘솔 로그**를 추가하고, **tsconfig 자체검증**을 수행했습니다.
+
+### 완료된 작업
+
+1. **A-1 — PrintViewWrapper 분리 + fetch 인터셉터** ✅
+   - 파일: `project_canvas/components/ExpandedView.tsx`
+   - `usePrintProxyLogger` 커스텀 훅 추가 (파일 상단)
+     - `window.fetch`를 감싸 `/api/print-proxy` 경로 요청만 선택적으로 로깅
+     - 요청: `[print-proxy] ▶ METHOD url  body=Xbytes`
+     - 응답: `[print-proxy] ◀ STATUS statusText  (Xms, Xbytes)`
+     - 에러: `[print-proxy] ✕ FETCH FAILED (Xms): ...`
+     - 언마운트 시 원래 fetch 복원 (전역 오염 방지)
+   - Print 분기 전체를 `PrintViewWrapper` 컴포넌트로 추출
+     - `usePrintProxyLogger()`를 컴포넌트 최상위에서 호출 (훅 규칙 준수)
+   - `ExpandedView`의 `if (node.type === 'print')` 분기는 `<PrintViewWrapper .../>` 단순 위임으로 교체
+
+2. **B-1 — TypeScript 타입 체크** ✅
+   - `npx tsc --noEmit` → 에러 0개
+   - 미사용 `NodeType` import 제거
+
+3. **B-2 — Canvas 서버 동작 확인** ✅
+   - 포트 3900 이미 사용 중 → 기존 서버 정상 가동 중
+   - HTTP 200 응답 확인
+   - Next.js Fast Refresh로 변경사항 자동 반영
+
+### 현재 로그 구조
+
+| 위치 | 채널 | 형식 |
+|------|------|------|
+| `route.ts` (Canvas 프록시) | 터미널 (Next.js 서버) | `[print-proxy] ▶/◀/✕` |
+| `middleware.ts` (Print 서버) | 터미널 (Print 서버) | `[print-server] ▶` |
+| `ExpandedView.tsx` (브라우저) | 브라우저 콘솔 | `[print-proxy] ▶/◀/✕` |
+
+### 다음에 무엇을 해야 하는지
+
+Phase C, D는 사용자 판단 유보:
+- **Phase C-1**: 로컬 업로드 썸네일 깨짐 수정 (`ImageThumbnail` useMemo → useState 패턴)
+- **Phase C-2**: 프리뷰 바 미표시 원인 확인
+- **Phase D-1**: Canvas ↔ ExpandedView 사이드바 불일치 처리 방향 결정

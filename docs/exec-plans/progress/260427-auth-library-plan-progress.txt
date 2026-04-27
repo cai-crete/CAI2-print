@@ -1,0 +1,32 @@
+## 진행 상황 — 2026-04-27 로그인 + 라이브러리 계획서 작성
+
+### 방금 완료한 작업
+
+- 로그인 + 계정 기반 라이브러리 시스템 계획서 작성
+- 파일 위치: `docs/exec-plans/active/auth-library-system-260427.md`
+
+### 계획서 핵심 결정 사항
+
+**기술 스택:**
+- 인증: Supabase Auth (이메일/비밀번호)
+- DB: Supabase PostgreSQL (RLS 적용)
+- 파일 스토리지: Supabase Storage
+- 세션: @supabase/ssr (Next.js 15 App Router 호환)
+
+**구현 Phase 요약:**
+1. Supabase 프로젝트 설정 + 패키지 설치
+2. 클라이언트/서버 유틸리티 작성
+3. 인증 UI (로그인/회원가입 페이지)
+4. 라이브러리 API Routes (save/list/delete/upload)
+5. 기존 AI 노드 생성 결과 자동 저장 연동
+6. 라이브러리 UI 페이지 (/library)
+7. 라이브러리 → 캔버스 재활용 (선택)
+8. 보안 강화 + 최종 검증
+
+**예상 소요 시간:** 10-16시간
+
+### 다음에 해야 할 것
+
+- 사용자 승인 후 Phase 1(Supabase 설정)부터 구현 착수
+- Phase 1은 사용자가 Supabase 콘솔에서 프로젝트를 직접 생성하고 환경변수를 제공해야 함
+- `canvas-print-integration-260424.md` Phase 6(이미지→Print 연동)도 병행 고려

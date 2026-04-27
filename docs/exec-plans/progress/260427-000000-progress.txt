@@ -1,0 +1,55 @@
+## 진행 상황 — 2026-04-27 정합성 검토
+
+### 방금 완료한 작업
+
+#### 1. 계획서 완료 현황 정리
+
+**completed/로 이동한 계획서 (5개):**
+- `print-log-and-validation-260424.md` — 브라우저 콘솔 로그 + tsc 검증 체크리스트 전체 ✅
+- `print-toolbar-zoom-pan-260424.md` — cursor/handle 도구, zoom 이식 체크리스트 전체 ✅
+- `phase-d-sidebar-transplant-260424.md` — PrintCanvasSidebarPanel 구현 + D-1~D-8 전체 ✅ (수동 검증 제외)
+- `print-ui-fix-260424.md` — Fix 1~4, 6, 7-A, 7-B 모두 완료; Fix 5(사이드바 불일치)는 Phase D로 해결됨
+- `print-api-integration-260424.md` — Task 1, 2 및 모든 후속 작업 코드 확인 완료
+
+**active/에 남아있는 계획서 (1개):**
+- `canvas-print-integration-260424.md` — Phase 6(이미지 다중선택→Print 실행) 및 Phase 7(디자인 오버라이드 audit) 미완
+
+#### 2. 코드 정합성 검토 결과
+
+**tsc 검증:** 양쪽 프로젝트 모두 `tsc --noEmit` 에러 0 확인
+
+**수정된 이슈:**
+- `project_canvas/app/globals.css`: `.font-pretendard` 중복 선언 제거 (line 92 중복 → 삭제)
+
+**발견된 잠재적 이슈 (미수정, 참고용):**
+1. `project_canvas/components/ExpandedView.tsx:75` — `onUploadImage?: () => void` Props에 선언되어 있으나 컴포넌트 내부에서 미사용. `page.tsx:854`에서 전달됨. Phase 6(이미지→Print 연동) 구현 시 사용 예정으로 보임.
+2. `project_canvas/app/page.tsx:410` — `handlePrintSidebarAction`에서 `'saves'` 액션을 `'library'`로 매핑하는 dead code. `PrintCanvasSidebarPanel`은 'saves' 버튼을 렌더링하지 않으므로 실질적 영향 없음.
+3. `project_canvas/app/api/print-proxy/[...path]/route.ts` — 계획서(canvas-print-integration)의 Phase 2 예시 코드와 실제 구현이 다름(계획: `/api/` prefix 추가, 실제: prefix 없음). 실제 구현이 올바름 — Print_ExpandedView가 이미 `/api/print` 형태로 apiBaseUrl에 `/api/` 포함 호출하기 때문.
+
+**구조적 확인 사항 (정상):**
+- `@source "../node_modules/@cai-crete/print-components"` Tailwind 스캔 범위 확장 적용됨 ✅
+- `--sidebar-spacing`, `--color-text-primary`, `--color-placeholder` 등 Print 패키지용 CSS 변수 정의됨 ✅
+- `[data-print-canvas] header { display: none !important; }` GlobalHeader 숨김 규칙 적용됨 ✅
+- `.env.local` PRINT_API_URL, CANVAS_API_SECRET, GITHUB_TOKEN 모두 설정됨 ✅
+- `.npmrc` GitHub Packages 인증 설정됨 ✅
+- `next.config.ts` transpilePackages 설정됨 ✅
+- `app/layout.tsx` print-tokens.css import 설정됨 ✅
+- `PrintCanvasSidebarPanel`, `PrintDraftState` 패키지 export 확인됨 ✅
+- `PrintToolbarTools`에 `activeTool`, `onToolChange`, `onNewProject`, `onZoomReset` 포함 확인됨 ✅
+
+### 다음에 해야 할 것
+
+1. **Phase 6 구현** (`canvas-print-integration-260424.md` 참조):
+   - Canvas에서 image 아트보드 다중 선택 → Print 실행 UI
+   - `handleSendToPrint` 함수 구현 (`page.tsx`)
+   - `PRINT_IMAGE_LIMITS` 장수 초과 시 토스트 표시
+   - `selectedImages` prop → PrintViewWrapper → PrintExpandedView 연결
+
+2. **Phase 7 검토** (선택적):
+   - 현재 globals.css에 Print CSS 변수가 이미 통합되어 있어 별도 `print-canvas-overrides.css` 불필요
+   - `/audit` 스킬로 디자인 컴플라이언스 점수 확인 (목표 14/20)
+
+3. **수동 테스트 권장** (phase-d 미완료 체크리스트):
+   - Canvas 사이드바 PRINT 탭 → 풀 사이드바 표시 확인
+   - 모드 선택 → ExpandedView 진입 후 동일 모드 유지 확인
+   - GENERATE → 생성 시작 및 결과 저장 후 Canvas 복귀 확인

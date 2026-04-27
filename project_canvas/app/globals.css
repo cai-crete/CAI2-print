@@ -88,8 +88,7 @@ html, body {
 .text-caption  { font-family: var(--font-family-pretendard); font-size: 0.75rem;  line-height: 1.2; }
 
 /* Print 패키지 호환 커스텀 유틸리티 */
-.text-ui-title   { font-family: var(--font-family-bebas); font-size: 1rem; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
-.font-pretendard { font-family: var(--font-family-pretendard); }
+.text-ui-title { font-family: var(--font-family-bebas); font-size: 1rem; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
 [data-print-canvas] header { display: none !important; }
 .print-save-wrapper button { border: none !important; }
 

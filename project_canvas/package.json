@@ -11,6 +11,8 @@
   "dependencies": {
     "@cai-crete/print-components": "file:../../cai-harness-print/project.10_print",
     "@google/generative-ai": "^0.24.1",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.104.1",
     "localforage": "^1.10.0",
     "next": "^15.3.0",
     "react": "^19.0.0",

@@ -1,0 +1,35 @@
+## 진행 상황 — 2026-04-27 로그인 + 라이브러리 계획서 v2 업데이트
+
+### 방금 완료한 작업
+
+- Q&A, 개선사항, 외부 개발자 보완사항, 이식 질문 전부 반영하여 계획서 전면 업데이트
+- 파일 위치: `docs/exec-plans/active/auth-library-system-260427.md`
+
+### 주요 변경 내용
+
+**Q&A 반영:**
+- fal.ai URL 만료 대응: 서버에서 즉시 fetch → Supabase Storage 복사 전략 Phase 5에 명시
+- 용량 초과 대응: 사용자 1인당 소프트 제한 2GB, 초과 시 409 에러 + 경고 UI
+- 도메인 무관 동작 확인 → 설계 결정 섹션에 명시
+- Google OAuth Phase 3 로그인/회원가입 UI에 추가
+- 타 노드 앱 이식 가이드 → Phase 8로 신규 추가 (SSO 구조 설명 포함)
+
+**개선사항 반영:**
+- 라이브러리 탭: IMAGE / VIDEO 2개 (문서 제외)
+- 헤더 우측 배치: 라이브러리 아이콘 + 사용자 아바타 드롭다운
+- 캔버스 삭제 ≠ 라이브러리 삭제 → Phase 5-7, 9-8에 명시
+- 드래그 앤 드랍 → Phase 7 (선택 → 필수)으로 격상
+
+**외부 개발자 보완 반영:**
+- middleware.ts matcher에 정적 자산 제외 패턴 명시
+- storage_path 상대 경로 저장 + createSignedUrl 동적 생성 방식으로 변경
+
+**스키마 변경:**
+- profiles.storage_used 컬럼 추가 (용량 추적)
+- library_items.file_size 컬럼 추가
+- type 값: 'image' | 'video' (document 제거)
+
+### 다음에 해야 할 것
+
+- 사용자가 Supabase 프로젝트 생성 + 환경변수 제공 후 Phase 1부터 구현 착수
+- canvas-print-integration Phase 6도 병행 고려 (Phase 7 드래그앤드랍과 연계)

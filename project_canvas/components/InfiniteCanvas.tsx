@@ -25,6 +25,7 @@ interface Props {
   onNodeExpand: (id: string) => void;
   onNodeDuplicate: (id: string) => void;
   onNodeDelete: (id: string) => void;
+  onLibraryDrop?: (worldPos: { x: number; y: number }, data: { type: string; signedUrl: string; title?: string }) => void;
 }
 
 const GRID_SIZE   = 40;
@@ -47,7 +48,7 @@ export default function InfiniteCanvas({
   onScaleChange, onOffsetChange,
   onNodePositionChange, onNodePositionCommit,
   onNodeSelect, onNodeDeselect, onNodesSelect, onNodeExpand,
-  onNodeDuplicate, onNodeDelete,
+  onNodeDuplicate, onNodeDelete, onLibraryDrop,
 }: Props) {
   /* ── 포트 계산 ──────────────────────────────────────────────────── */
   const inCount  = (id: string) => edges.filter(e => e.targetId === id).length;
@@ -371,6 +372,30 @@ export default function InfiniteCanvas({
     dragMoved.current = false;
   }, [activeTool]);
 
+  /* ── 라이브러리 드래그 앤 드랍 ──────────────────────────────────── */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/cai-library')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    const raw = e.dataTransfer.getData('application/cai-library');
+    if (!raw || !onLibraryDrop) return;
+    e.preventDefault();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const worldPos = toWorld(
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+      { offset: offsetRef.current, scale: scaleRef.current }
+    );
+    try {
+      const data = JSON.parse(raw);
+      onLibraryDrop(worldPos, data);
+    } catch { /* no-op */ }
+  }, [onLibraryDrop]);
+
   /* ── 커서 스타일 ─────────────────────────────────────────────────── */
   const cursor = isMiddleButtonPanning || isDraggingPan
     ? 'grabbing'
@@ -390,6 +415,8 @@ export default function InfiniteCanvas({
       onPointerCancel={handleWrapperPointerDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       style={{
         position: 'absolute',
         inset: 0,

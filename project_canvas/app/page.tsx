@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
 import localforage from 'localforage';
 import {
   CanvasNode, CanvasEdge, NodeType,
@@ -80,6 +83,15 @@ const DIRECT_EXPAND_NODES: NodeType[] = ['planners', 'image', 'plan'];
 type ActiveTool = 'cursor' | 'handle';
 
 export default function CanvasPage() {
+  /* ── auth ────────────────────────────────────────────────────────── */
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+  }, []);
+
   /* ── viewport ──────────────────────────────────────────────────── */
   const [scale,  setScale]  = useState(1);
   const [offset, setOffset] = useState({ x: 80, y: 80 });
@@ -762,6 +774,32 @@ export default function CanvasPage() {
     zoomCycleStateRef.current = 0;
   }, [scale, offset, nodes]);
 
+  /* ── 라이브러리 드랍 → 아트보드 생성 ───────────────────────────── */
+  const handleLibraryDrop = useCallback(async (
+    worldPos: { x: number; y: number },
+    data: { type: string; signedUrl: string; title?: string }
+  ) => {
+    if (!data.signedUrl) return;
+    const res = await fetch(data.signedUrl);
+    const blob = await res.blob();
+    const base64 = await new Promise<string>(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+    const newNode: CanvasNode = {
+      id: generateId(),
+      type: 'image',
+      title: data.title ?? 'IMAGE',
+      position: { x: worldPos.x - CARD_W / 2, y: worldPos.y - CARD_H / 2 },
+      instanceNumber: nodes.filter(n => n.type === 'image').length + 1,
+      hasThumbnail: true,
+      artboardType: 'image',
+      generatedImageData: base64,
+    };
+    setNodes(prev => [...prev, newNode]);
+  }, [nodes]);
+
   /* ── 헤더 ───────────────────────────────────────────────────────── */
   const Header = () => (
     <header style={{
@@ -776,11 +814,117 @@ export default function CanvasPage() {
       position: 'relative',
       zIndex: 10,
     }}>
+      {/* 좌측: 로고 */}
       <span className="text-title" style={{ fontSize: '1.25rem', letterSpacing: '0.05em' }}>
         CAI&nbsp;&nbsp;CANVAS
       </span>
+
+      {/* 우측: 라이브러리 + 사용자 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* 라이브러리 아이콘 */}
+        <button
+          onClick={() => router.push('/library')}
+          title="라이브러리"
+          style={{
+            width: '2rem', height: '2rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            borderRadius: '0.375rem', color: 'var(--color-gray-500)',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-app-bg)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </button>
+
+        {/* 사용자 아바타 */}
+        {user ? (
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setUserMenuOpen(v => !v)}
+              title={user.email ?? ''}
+              style={{
+                width: '2rem', height: '2rem',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-black)',
+                color: 'var(--color-white)',
+                border: 'none', cursor: 'pointer',
+                fontSize: '0.75rem', fontWeight: 600,
+                fontFamily: 'var(--font-family-pretendard)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {(user.email ?? 'U')[0].toUpperCase()}
+            </button>
+            {userMenuOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 0.5rem)', right: 0,
+                backgroundColor: 'var(--color-white)',
+                border: '1px solid var(--color-gray-100)',
+                borderRadius: 'var(--radius-box)',
+                boxShadow: 'var(--shadow-float)',
+                minWidth: '11rem',
+                padding: '0.375rem',
+                zIndex: 100,
+              }}>
+                <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-gray-400)', borderBottom: '1px solid var(--color-gray-100)', marginBottom: '0.25rem' }}>
+                  {user.email}
+                </div>
+                <button
+                  onClick={() => { setUserMenuOpen(false); router.push('/library'); }}
+                  style={menuItemStyle}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-app-bg)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  라이브러리
+                </button>
+                <button
+                  onClick={async () => {
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    router.push('/auth/login');
+                  }}
+                  style={menuItemStyle}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-app-bg)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  로그아웃
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => router.push('/auth/login')}
+            style={{
+              height: '2rem', padding: '0 0.875rem',
+              backgroundColor: 'var(--color-black)',
+              color: 'var(--color-white)',
+              border: 'none', borderRadius: '0.375rem',
+              cursor: 'pointer', fontSize: '0.8125rem',
+              fontFamily: 'var(--font-family-pretendard)',
+            }}
+          >
+            로그인
+          </button>
+        )}
+      </div>
     </header>
   );
+
+  const menuItemStyle: React.CSSProperties = {
+    width: '100%', padding: '0.5rem 0.75rem',
+    background: 'transparent', border: 'none',
+    textAlign: 'left', cursor: 'pointer',
+    fontSize: '0.8125rem', color: 'var(--color-black)',
+    fontFamily: 'var(--font-family-pretendard)',
+    borderRadius: '0.375rem',
+  };
 
   /* ── render ─────────────────────────────────────────────────────── */
   return (
@@ -837,6 +981,7 @@ export default function CanvasPage() {
             onNodeExpand={setExpandedNodeId}
             onNodeDuplicate={duplicateNode}
             onNodeDelete={deleteNode}
+            onLibraryDrop={handleLibraryDrop}
           />
 
           <LeftToolbar
